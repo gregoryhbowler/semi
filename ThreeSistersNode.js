@@ -7,7 +7,8 @@ export class ThreeSistersNode extends AudioWorkletNode {
       numberOfInputs: 1,  // Single bus, 2 channels merged below
       numberOfOutputs: 1, // 4 channels: LOW, CENTRE, HIGH, ALL
       outputChannelCount: [4],
-      channelCount: 1,
+      // Allow both the audio input (ch 0) and FM input (ch 1) to reach the processor
+      channelCount: 2,
       channelCountMode: 'explicit',
       channelInterpretation: 'discrete'
     });
