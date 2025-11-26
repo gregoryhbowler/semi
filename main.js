@@ -76,8 +76,9 @@ class Phase4App {
       this.scope1Analyser.connect(this.quantizer.getInput());
       this.quantizer.getOutput().connect(this.mangroveA.getPitchCVInput());
 
-      // 2. Mangrove B FORMANT → FM Gain → Mangrove A FM input (AUDIO-RATE FM)
-      this.mangroveB.getFormantOutput().connect(this.fmGainB);
+      // 2. Mangrove B SQUARE → FM Gain → Mangrove A FM input (AUDIO-RATE FM)
+      // Use SQUARE for continuous audio-rate signal, not FORMANT (which is impulses)
+      this.mangroveB.getSquareOutput().connect(this.fmGainB);
       this.fmGainB.connect(this.mangroveA.getFMInput());
 
       // 3. Mangrove A FORMANT → Scope 2 → Master Gain → Destination
@@ -89,7 +90,7 @@ class Phase4App {
       
       console.log('=== Phase 4 Signal Flow ===');
       console.log('JF #1 IDENTITY → Scope 1 → Quantizer → Mangrove A pitch');
-      console.log('Mangrove B FORMANT → Mangrove A FM input');
+      console.log('Mangrove B SQUARE → Mangrove A FM input (audio-rate)');
       console.log('Mangrove A FORMANT → Scope 2 → Output');
       console.log('Mangrove C: Ready for filter FM (Phase 5)');
 
@@ -125,12 +126,12 @@ class Phase4App {
     this.quantizer.setDepth(1.0);
     this.quantizer.setOffset(0);
 
-    // Mangrove A: Main voice, mid-range settings, FM depth at 0.3
+    // Mangrove A: Main voice, mid-range settings, FM depth at 0.15
     this.mangroveA.setPitch(0.5);
     this.mangroveA.setBarrel(0.3);
     this.mangroveA.setFormant(0.6);
     this.mangroveA.setAir(0.5);
-    this.mangroveA.setFMIndex(0.3); // FM depth at 0.3 (moderate)
+    this.mangroveA.setFMIndex(0.15); // FM depth at 0.15 (moderate with new scaling)
 
     // Mangrove B: FM source, slightly detuned for interesting FM
     this.mangroveB.setPitch(0.52); // Slightly higher than A
@@ -268,7 +269,7 @@ class Phase4App {
     
     console.log('Phase 4 system running');
     console.log('- Mangrove A: Main voice (pitch modulated by quantizer)');
-    console.log('- Mangrove B: FM modulating A at audio rate');
+    console.log('- Mangrove B SQUARE: FM modulating A at audio rate');
     console.log('- Mangrove C: Ready for Phase 5');
   }
 
