@@ -1,7 +1,8 @@
-// main.js - Phase 5 + Modulation Matrix + Just Friends Oscillator Integration
+// main.js - Phase 5 + Modulation Matrix + Just Friends Oscillator Integration + Transpose Sequencer
 //
 // Signal flow with oscillator selection:
-// JF #1 → Quantizer → [Mangrove A OR Just Friends Osc] → Three Sisters
+// JF #1 IDENTITY → Transpose Sequencer → Quantizer transpose parameter
+// JF #1 IDENTITY → Scope 1 → Quantizer → [Mangrove A OR Just Friends Osc] → Three Sisters
 // JF #1 (2N-6N) → Modulation Matrix → [27 destinations]
 // Mangrove B FORMANT → [Exponential FM OR Linear FM] → Selected Oscillator
 // Mangrove C FORMANT → Three Sisters FM input
@@ -10,6 +11,7 @@
 import { JustFriendsNode } from './JustFriendsNode.js';
 import { JustFriendsOscNode } from './JustFriendsOscNode.js';
 import { QuantizerNode } from './QuantizerNode.js';
+import { TransposeSequencerNode } from './TransposeSequencerNode.js';
 import { MangroveNode } from './MangroveNode.js';
 import { ThreeSistersNode } from './ThreeSistersNode.js';
 import { ModulationMatrixNode } from './outputs/ModulationMatrixNode.js';
@@ -20,6 +22,7 @@ class Phase5App {
     
     // Modules
     this.jf1 = null;
+    this.transposeSeq = null;
     this.quantizer = null;
     this.mangroveA = null;
     this.mangroveB = null;
@@ -46,6 +49,9 @@ class Phase5App {
     this.mangroveAGain = null;
     this.jfOscGain = null;
     
+    // Transpose sequencer to quantizer connection
+    this.transposeGain = null;
+    
     this.isRunning = false;
 
     // Scope visualization
@@ -70,16 +76,18 @@ class Phase5App {
       await this.audioContext.audioWorklet.addModule('./just-friends-processor.js');
       await this.audioContext.audioWorklet.addModule('./just-friends-osc-processor.js');
       await this.audioContext.audioWorklet.addModule('./quantizer-processor.js');
+      await this.audioContext.audioWorklet.addModule('./transpose-sequencer-processor.js');
       await this.audioContext.audioWorklet.addModule('./mangrove-processor.js');
       await this.audioContext.audioWorklet.addModule('./three-sisters-processor.js');
       await this.audioContext.audioWorklet.addModule('./modulation-matrix-processor.js');
       
-      console.log('%c✓ All AudioWorklets loaded - Phase 5 + JF Osc Integration', 'color: green; font-weight: bold');
+      console.log('%c✓ All AudioWorklets loaded - Phase 5 + JF Osc Integration + Transpose Sequencer', 'color: green; font-weight: bold');
       
       // Create module instances
       this.jf1 = new JustFriendsNode(this.audioContext);
       this.jfOsc = new JustFriendsOscNode(this.audioContext);
       await new Promise(resolve => setTimeout(resolve, 10));
+      this.transposeSeq = new TransposeSequencerNode(this.audioContext);
       this.quantizer = new QuantizerNode(this.audioContext);
       this.mangroveA = new MangroveNode(this.audioContext);
       this.mangroveB = new MangroveNode(this.audioContext);
@@ -103,21 +111,32 @@ class Phase5App {
       this.fmLinGain = this.audioContext.createGain();
       this.fmLinGain.gain.value = 1.0; // Pass-through for linear
 
+      // Create transpose gain for sequencer → quantizer
+      this.transposeGain = this.audioContext.createGain();
+      this.transposeGain.gain.value = 12.0; // Convert from voltage back to semitones
+
       this.setupScope1();
       this.setupScope2();
 
       // ========== SIGNAL ROUTING ==========
       
-      // 1. JF #1 → Scope 1 → Quantizer
+      // 1. JF #1 IDENTITY → Transpose Sequencer clock input
+      this.jf1.getIdentityOutput().connect(this.transposeSeq.getClockInput());
+      
+      // 2. JF #1 IDENTITY → Scope 1 → Quantizer pitch input
       this.jf1.getIdentityOutput().connect(this.scope1Analyser);
       this.scope1Analyser.connect(this.quantizer.getInput());
 
-      // 2. Quantizer → Both Mangrove A and JF Osc (both always get pitch CV)
+      // 3. Transpose Sequencer → Quantizer transpose parameter
+      // The sequencer outputs voltage (semitones/12), we need to convert back to semitones
+      this.transposeSeq.getTransposeOutput().connect(this.transposeGain);
+      this.transposeGain.connect(this.quantizer.params.transpose);
+
+      // 4. Quantizer → Both Mangrove A and JF Osc (both always get pitch CV)
       this.quantizer.getOutput().connect(this.mangroveA.getPitchCVInput());
       this.quantizer.getOutput().connect(this.jfOsc.getTimeCVInput());
 
-      // 3. Mangrove B FORMANT → FM routing
-      // This splits to both exponential and linear paths, controlled by gains
+      // 5. Mangrove B FORMANT → FM routing
       this.mangroveB.getFormantOutput().connect(this.fmGainB);
       
       // Exponential path: FM → fmExpGain → Mangrove A pitch / JF Osc TIME CV
@@ -130,22 +149,22 @@ class Phase5App {
       this.fmLinGain.connect(this.mangroveA.getFMInput());
       this.fmLinGain.connect(this.jfOsc.getFMInput());
 
-      // 4. Oscillator outputs → Crossfade → Three Sisters
+      // 6. Oscillator outputs → Crossfade → Three Sisters
       this.mangroveA.getFormantOutput().connect(this.mangroveAGain);
       this.jfOsc.getMixOutput().connect(this.jfOscGain);
       
       this.mangroveAGain.connect(this.threeSisters.getAudioInput());
       this.jfOscGain.connect(this.threeSisters.getAudioInput());
 
-      // 5. Mangrove C FORMANT → Three Sisters FM input
+      // 7. Mangrove C FORMANT → Three Sisters FM input
       this.mangroveC.getFormantOutput().connect(this.threeSisters.getFMInput());
 
-      // 6. Three Sisters ALL output → Scope 2 → Master → Output
+      // 8. Three Sisters ALL output → Scope 2 → Master → Output
       this.threeSisters.getAllOutput().connect(this.scope2Analyser);
       this.scope2Analyser.connect(this.masterGain);
       this.masterGain.connect(this.audioContext.destination);
       
-      // 7. JF slopes 2N-6N → Modulation Matrix
+      // 9. JF slopes 2N-6N → Modulation Matrix
       this.jfMerger = this.audioContext.createChannelMerger(5);
       this.jf1.get2NOutput().connect(this.jfMerger, 0, 0);
       this.jf1.get3NOutput().connect(this.jfMerger, 0, 1);
@@ -154,24 +173,28 @@ class Phase5App {
       this.jf1.get6NOutput().connect(this.jfMerger, 0, 4);
       this.jfMerger.connect(this.modMatrix.getInput());
       
-      console.log('=== Phase 5 + JF Osc Integration Signal Flow ===');
+      console.log('=== Phase 5 + JF Osc Integration + Transpose Sequencer ===');
+      console.log('JF #1 IDENTITY → Transpose Sequencer → Quantizer transpose');
       console.log('JF #1 IDENTITY → Quantizer → [Mangrove A OR JF Osc] → Three Sisters');
       console.log('Mangrove B → [Exponential OR Linear FM] → Active Oscillator');
       console.log('Mangrove C → Three Sisters FM');
-      console.log('Active oscillator controlled by toggle');
       
       // Build destination map for modulation matrix
       this.buildDestinationMap();
       
       this.configureDefaults();
       
+      // Listen for step changes from transpose sequencer
+      this.transposeSeq.addEventListener('step-changed', (e) => {
+        this.updateSequencerUI(e.detail.step, e.detail.transpose);
+      });
+      
       document.getElementById('status').textContent = 'Ready - System Active';
       document.getElementById('startBtn').disabled = false;
       
       this.syncUIWithParameters();
       
-      console.log('%c✓ Phase 5 + JF Osc Integration initialized!', 'color: green; font-weight: bold');
-      console.log('%c✓ Toggle between Mangrove and Just Friends oscillators', 'color: blue; font-weight: bold');
+      console.log('%c✓ Phase 5 + Transpose Sequencer initialized!', 'color: green; font-weight: bold');
       
     } catch (error) {
       console.error('Failed to initialize:', error);
@@ -258,6 +281,10 @@ class Phase5App {
     this.quantizer.setDepth(1.0);
     this.quantizer.setOffset(0);
 
+    // Transpose Sequencer: Forward mode, all steps disabled
+    this.transposeSeq.setPlaybackMode('forward');
+    this.transposeSeq.clearCells();
+
     // Mangrove A: Main voice
     this.mangroveA.setPitch(0.5);
     this.mangroveA.setBarrel(0.3);
@@ -297,7 +324,6 @@ class Phase5App {
     const fadeTime = 0.05; // 50ms crossfade
     
     if (osc === 'mangrove') {
-      // Fade to Mangrove
       this.mangroveAGain.gain.cancelScheduledValues(now);
       this.mangroveAGain.gain.setValueAtTime(this.mangroveAGain.gain.value, now);
       this.mangroveAGain.gain.linearRampToValueAtTime(1.0, now + fadeTime);
@@ -308,7 +334,6 @@ class Phase5App {
       
       console.log('✓ Switched to Mangrove A');
     } else {
-      // Fade to Just Friends Osc
       this.mangroveAGain.gain.cancelScheduledValues(now);
       this.mangroveAGain.gain.setValueAtTime(this.mangroveAGain.gain.value, now);
       this.mangroveAGain.gain.linearRampToValueAtTime(0.0, now + fadeTime);
@@ -320,7 +345,6 @@ class Phase5App {
       console.log('✓ Switched to Just Friends Osc');
     }
     
-    // Update UI
     this.updateOscillatorUI();
   }
 
@@ -336,7 +360,6 @@ class Phase5App {
       if (jfOscPanel) jfOscPanel.style.display = 'block';
     }
     
-    // Update toggle button states
     document.querySelectorAll('.osc-toggle-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.osc === this.activeOscillator);
     });
@@ -352,7 +375,6 @@ class Phase5App {
     const fadeTime = 0.02;
     
     if (mode === 'exponential') {
-      // Enable exponential, disable linear
       this.fmExpGain.gain.cancelScheduledValues(now);
       this.fmExpGain.gain.setValueAtTime(this.fmExpGain.gain.value, now);
       this.fmExpGain.gain.linearRampToValueAtTime(0.3, now + fadeTime);
@@ -363,7 +385,6 @@ class Phase5App {
       
       console.log('✓ FM Mode: Exponential (pitch modulation)');
     } else {
-      // Enable linear, disable exponential
       this.fmExpGain.gain.cancelScheduledValues(now);
       this.fmExpGain.gain.setValueAtTime(this.fmExpGain.gain.value, now);
       this.fmExpGain.gain.linearRampToValueAtTime(0.0, now + fadeTime);
@@ -375,7 +396,6 @@ class Phase5App {
       console.log('✓ FM Mode: Linear (through-zero FM)');
     }
     
-    // Update UI
     document.querySelectorAll('.fm-mode-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.mode === mode);
     });
@@ -401,7 +421,6 @@ class Phase5App {
     this.jfOsc.params.mode.value = modeValue;
     this.jfOsc.params.range.value = rangeValue;
     
-    // Update mode badge
     this.updateJFOscModeDisplay();
   }
 
@@ -413,11 +432,11 @@ class Phase5App {
     const range = Math.round(this.jfOsc.params.range?.value || 0);
     const runEnabled = (this.jfOsc.params.runEnabled?.value || 0) > 0.5;
     
-      const modeNames = ['transient', 'sustain', 'cycle'];
-      const rangeNames = ['shape', 'sound'];
-      const runModes = {
-        '0/0': 'SHIFT', '1/0': 'STRATA', '2/0': 'VOLLEY',
-        '0/1': 'SPILL', '1/1': 'PLUME', '2/1': 'FLOOM'
+    const modeNames = ['transient', 'sustain', 'cycle'];
+    const rangeNames = ['shape', 'sound'];
+    const runModes = {
+      '0/0': 'SHIFT', '1/0': 'STRATA', '2/0': 'VOLLEY',
+      '0/1': 'SPILL', '1/1': 'PLUME', '2/1': 'FLOOM'
     };
     
     if (runEnabled) {
@@ -429,6 +448,8 @@ class Phase5App {
       modeBadge.classList.remove('run-mode');
     }
   }
+
+  // ========== SCOPE RENDERING ==========
 
   setupScope1() {
     this.scope1Analyser = this.audioContext.createAnalyser();
@@ -667,12 +688,10 @@ class Phase5App {
       return;
     }
     
-    // Generate 5 slots
     for (let i = 0; i < 5; i++) {
       container.innerHTML += this.generateModSlotHTML(i);
     }
     
-    // Bind event handlers
     this.bindModMatrixControls();
     
     console.log('✓ Modulation matrix UI initialized');
@@ -702,17 +721,11 @@ class Phase5App {
           <span class="seq-cell-number">${i + 1}</span>
           <input type="checkbox" class="seq-cell-toggle" data-step="${i}">
         </div>
-        <div class="transpose-control">
-          <span class="transpose-label">transpose</span>
-          <div class="transpose-display" data-step="${i}">0</div>
-          <input type="range" class="transpose-slider" data-step="${i}" 
-                 min="-24" max="24" value="0" step="1">
-        </div>
-        <div class="repeats-control">
-          <span class="repeats-label">×</span>
-          <input type="number" class="repeats-input" data-step="${i}" 
-                 min="1" max="64" value="1">
-        </div>
+        <div class="transpose-value">${0}</div>
+        <input type="range" class="transpose-slider" data-step="${i}" 
+               min="-24" max="24" value="0" step="1">
+        <input type="number" class="repeats-input" data-step="${i}" 
+               min="1" max="64" value="1" title="repeats">
       `;
       
       grid.appendChild(cell);
@@ -723,58 +736,89 @@ class Phase5App {
   }
 
   setupSequencerListeners() {
+    // Cell toggles
     document.querySelectorAll('.seq-cell-toggle').forEach(toggle => {
       toggle.addEventListener('change', (e) => {
         const step = parseInt(e.target.dataset.step);
+        const active = e.target.checked;
         const cell = document.querySelector(`.seq-cell[data-step="${step}"]`);
-        if (e.target.checked) {
-          cell.classList.add('active');
-        } else {
-          cell.classList.remove('active');
+        cell.classList.toggle('active', active);
+        
+        // Update transpose sequencer
+        if (this.transposeSeq) {
+          this.transposeSeq.setCell(step, { active });
         }
       });
     });
     
+    // Transpose sliders
     document.querySelectorAll('.transpose-slider').forEach(slider => {
       slider.addEventListener('input', (e) => {
         const step = parseInt(e.target.dataset.step);
         const transpose = parseInt(e.target.value);
-        const display = document.querySelector(`.transpose-display[data-step="${step}"]`);
+        const valueDisplay = e.target.parentElement.querySelector('.transpose-value');
         const sign = transpose > 0 ? '+' : '';
-        display.textContent = `${sign}${transpose}`;
-        display.className = 'transpose-display';
-        if (transpose > 0) display.classList.add('positive');
-        if (transpose < 0) display.classList.add('negative');
+        valueDisplay.textContent = `${sign}${transpose}`;
+        valueDisplay.className = 'transpose-value';
+        if (transpose > 0) valueDisplay.classList.add('positive');
+        if (transpose < 0) valueDisplay.classList.add('negative');
+        
+        // Update transpose sequencer
+        if (this.transposeSeq) {
+          this.transposeSeq.setCell(step, { transpose });
+        }
       });
     });
     
+    // Repeats inputs
     document.querySelectorAll('.repeats-input').forEach(input => {
       input.addEventListener('change', (e) => {
+        const step = parseInt(e.target.dataset.step);
         let repeats = parseInt(e.target.value);
         repeats = Math.max(1, Math.min(64, repeats));
         e.target.value = repeats;
+        
+        // Update transpose sequencer
+        if (this.transposeSeq) {
+          this.transposeSeq.setCell(step, { repeats });
+        }
       });
     });
     
+    // Playback mode buttons
     document.querySelectorAll('.playback-mode-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         document.querySelectorAll('.playback-mode-btn').forEach(b => 
           b.classList.remove('active'));
         e.target.classList.add('active');
+        const mode = e.target.dataset.mode;
+        if (this.transposeSeq) {
+          this.transposeSeq.setPlaybackMode(mode);
+        }
       });
     });
     
+    // Action buttons
     document.getElementById('seqResetBtn')?.addEventListener('click', () => {
-      console.log('[Sequencer] Reset');
+      if (this.transposeSeq) {
+        this.transposeSeq.reset();
+      }
+      document.querySelectorAll('.seq-cell').forEach(cell => {
+        cell.classList.remove('current');
+      });
+      document.querySelector('.seq-cell[data-step="0"]')?.classList.add('current');
     });
     
     document.getElementById('seqClearBtn')?.addEventListener('click', () => {
+      if (this.transposeSeq) {
+        this.transposeSeq.clearCells();
+      }
       document.querySelectorAll('.seq-cell-toggle').forEach(t => t.checked = false);
       document.querySelectorAll('.seq-cell').forEach(c => c.classList.remove('active', 'current'));
       document.querySelectorAll('.transpose-slider').forEach(s => s.value = 0);
-      document.querySelectorAll('.transpose-display').forEach(d => {
+      document.querySelectorAll('.transpose-value').forEach(d => {
         d.textContent = '0';
-        d.className = 'transpose-display';
+        d.className = 'transpose-value';
       });
       document.querySelectorAll('.repeats-input').forEach(i => i.value = 1);
     });
@@ -784,18 +828,32 @@ class Phase5App {
         const step = parseInt(slider.dataset.step);
         const transpose = Math.floor(Math.random() * 49) - 24;
         slider.value = transpose;
-        const display = document.querySelector(`.transpose-display[data-step="${step}"]`);
+        const valueDisplay = slider.parentElement.querySelector('.transpose-value');
         const sign = transpose > 0 ? '+' : '';
-        display.textContent = `${sign}${transpose}`;
-        display.className = 'transpose-display';
-        if (transpose > 0) display.classList.add('positive');
-        if (transpose < 0) display.classList.add('negative');
+        valueDisplay.textContent = `${sign}${transpose}`;
+        valueDisplay.className = 'transpose-value';
+        if (transpose > 0) valueDisplay.classList.add('positive');
+        if (transpose < 0) valueDisplay.classList.add('negative');
+        
+        if (this.transposeSeq) {
+          this.transposeSeq.setCell(step, { transpose });
+        }
       });
     });
   }
 
+  updateSequencerUI(step, transpose) {
+    // Update current step indicator
+    document.querySelectorAll('.seq-cell').forEach(cell => {
+      cell.classList.remove('current');
+    });
+    const currentCell = document.querySelector(`.seq-cell[data-step="${step}"]`);
+    if (currentCell) {
+      currentCell.classList.add('current');
+    }
+  }
+
   bindModMatrixControls() {
-    // Enable/disable checkboxes
     document.querySelectorAll('.mod-enable').forEach(checkbox => {
       checkbox.addEventListener('change', (e) => {
         const slot = parseInt(e.target.dataset.slot);
@@ -804,7 +862,6 @@ class Phase5App {
       });
     });
     
-    // Destination dropdowns
     document.querySelectorAll('.mod-destination').forEach(select => {
       select.addEventListener('change', (e) => {
         const slot = parseInt(e.target.dataset.slot);
@@ -813,7 +870,6 @@ class Phase5App {
       });
     });
     
-    // Mode dropdowns
     document.querySelectorAll('.mod-mode').forEach(select => {
       select.addEventListener('change', (e) => {
         const slot = parseInt(e.target.dataset.slot);
@@ -822,7 +878,6 @@ class Phase5App {
       });
     });
     
-    // Depth sliders
     document.querySelectorAll('.mod-depth').forEach(slider => {
       slider.addEventListener('input', (e) => {
         const slot = parseInt(e.target.dataset.slot);
@@ -834,7 +889,6 @@ class Phase5App {
       });
     });
     
-    // Offset sliders
     document.querySelectorAll('.mod-offset').forEach(slider => {
       slider.addEventListener('input', (e) => {
         const slot = parseInt(e.target.dataset.slot);
@@ -850,14 +904,9 @@ class Phase5App {
   handleModSlotEnable(slot, enabled) {
     this.modMatrix.setEnabled(slot, enabled);
     
-    // Update UI
     const slotElement = document.querySelector(`.mod-slot[data-slot="${slot}"]`);
     if (slotElement) {
-      if (enabled) {
-        slotElement.classList.add('active');
-      } else {
-        slotElement.classList.remove('active');
-      }
+      slotElement.classList.toggle('active', enabled);
     }
     
     console.log(`Mod slot ${slot} ${enabled ? 'ENABLED' : 'DISABLED'}`);
@@ -865,13 +914,11 @@ class Phase5App {
 
   handleModDestinationChange(slot, destination) {
     if (!destination || destination === '') {
-      // Clear destination
       this.modMatrix.clearSlot(slot);
       console.log(`Mod slot ${slot} destination cleared`);
       return;
     }
     
-    // Look up the AudioParam
     const audioParam = this.destinationMap[destination];
     
     if (!audioParam) {
@@ -879,9 +926,78 @@ class Phase5App {
       return;
     }
     
-    // Set the destination
     this.modMatrix.setDestination(slot, audioParam);
     console.log(`Mod slot ${slot} → ${destination}`);
+  }
+
+  // ========== SCALE SELECTION (UNIFIED) ==========
+
+  setScale(scaleName, root = 0) {
+    if (!this.quantizer) return;
+
+    console.log(`Setting scale: ${scaleName}, root: ${root}`);
+
+    // Map scale name to quantizer method
+    switch (scaleName) {
+      case 'chromatic':
+        this.quantizer.setChromatic();
+        break;
+      case 'major':
+        this.quantizer.setMajorScale(root);
+        break;
+      case 'minor':
+        this.quantizer.setMinorScale(root);
+        break;
+      case 'dorian':
+        this.quantizer.setDorianMode(root);
+        break;
+      case 'phrygian':
+        this.quantizer.setPhrygianMode(root);
+        break;
+      case 'lydian':
+        this.quantizer.setLydianMode(root);
+        break;
+      case 'mixolydian':
+        this.quantizer.setMixolydianMode(root);
+        break;
+      case 'locrian':
+        this.quantizer.setLocrianMode(root);
+        break;
+      case 'harmonic-minor':
+        this.quantizer.setHarmonicMinor(root);
+        break;
+      case 'melodic-minor':
+        this.quantizer.setMelodicMinor(root);
+        break;
+      case 'penta-maj':
+        this.quantizer.setPentatonicMajor(root);
+        break;
+      case 'penta-min':
+        this.quantizer.setPentatonicMinor(root);
+        break;
+      case 'blues':
+        this.quantizer.setBluesScale(root);
+        break;
+      case 'whole-tone':
+        this.quantizer.setWholeTone(root);
+        break;
+      case 'diminished':
+        this.quantizer.setDiminished(root);
+        break;
+    }
+
+    // Update piano keyboard to reflect the scale
+    this.updatePianoKeyboard();
+  }
+
+  updatePianoKeyboard() {
+    const mask = this.quantizer?.getNoteMask();
+    if (!mask) return;
+
+    const keys = document.querySelectorAll('.piano-key');
+    keys.forEach((key, i) => {
+      key.classList.toggle('active', mask[i]);
+    });
   }
 
   // ========== UI SETUP ==========
@@ -953,34 +1069,22 @@ class Phase5App {
 
     // JF Osc controls
     this.bindKnob('jfOscTime', (val) => {
-      if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.time) {
-        this.jfOsc.params.time.value = val;
-      }
+      if (this.jfOsc?.params?.time) this.jfOsc.params.time.value = val;
     });
     this.bindKnob('jfOscIntone', (val) => {
-      if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.intone) {
-        this.jfOsc.params.intone.value = val;
-      }
+      if (this.jfOsc?.params?.intone) this.jfOsc.params.intone.value = val;
     });
     this.bindKnob('jfOscRamp', (val) => {
-      if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.ramp) {
-        this.jfOsc.params.ramp.value = val;
-      }
+      if (this.jfOsc?.params?.ramp) this.jfOsc.params.ramp.value = val;
     });
     this.bindKnob('jfOscCurve', (val) => {
-      if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.curve) {
-        this.jfOsc.params.curve.value = val;
-      }
+      if (this.jfOsc?.params?.curve) this.jfOsc.params.curve.value = val;
     });
     this.bindKnob('jfOscFmIndex', (val) => {
-      if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.fmIndex) {
-        this.jfOsc.params.fmIndex.value = val;
-      }
+      if (this.jfOsc?.params?.fmIndex) this.jfOsc.params.fmIndex.value = val;
     });
     this.bindKnob('jfOscRun', (val) => {
-      if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.run) {
-        this.jfOsc.params.run.value = val;
-      }
+      if (this.jfOsc?.params?.run) this.jfOsc.params.run.value = val;
     });
 
     // JF Osc mode selection
@@ -1034,16 +1138,31 @@ class Phase5App {
     this.bindKnob('quantDepth', (val) => this.quantizer?.setDepth(val));
     this.bindKnob('quantOffset', (val) => this.quantizer?.setOffset(val));
 
-    const presetBtns = document.querySelectorAll('.preset-btn');
-    presetBtns.forEach(btn => {
+    // Unified scale selection
+    const rootSelect = document.getElementById('rootNote');
+    if (rootSelect) {
+      rootSelect.addEventListener('change', () => {
+        const activeBtn = document.querySelector('.scale-btn.active');
+        if (activeBtn) {
+          const scale = activeBtn.dataset.scale;
+          const root = parseInt(rootSelect.value);
+          this.setScale(scale, root);
+        }
+      });
+    }
+
+    const scaleBtns = document.querySelectorAll('.scale-btn');
+    scaleBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
-        presetBtns.forEach(b => b.classList.remove('active'));
+        scaleBtns.forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         const scale = e.target.dataset.scale;
-        this.setScale(scale);
+        const root = parseInt(rootSelect?.value || '0');
+        this.setScale(scale, root);
       });
     });
 
+    // Piano keyboard - make keys toggleable but they also reflect the scale
     this.createPianoKeyboard();
 
     // Mangrove A controls
@@ -1094,13 +1213,6 @@ class Phase5App {
         }
       });
       
-      knob.addEventListener('change', (e) => {
-        const value = parseFloat(e.target.value);
-        if (display) {
-          display.textContent = value.toFixed(2);
-        }
-      });
-      
       if (display) {
         display.textContent = parseFloat(knob.value).toFixed(2);
       }
@@ -1113,6 +1225,8 @@ class Phase5App {
 
     const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const isBlackKey = [false, true, false, true, false, false, true, false, true, false, true, false];
+
+    container.innerHTML = ''; // Clear existing
 
     for (let i = 0; i < 12; i++) {
       const key = document.createElement('div');
@@ -1128,44 +1242,6 @@ class Phase5App {
       
       container.appendChild(key);
     }
-  }
-
-  setScale(scaleName) {
-    if (!this.quantizer) return;
-
-    switch (scaleName) {
-      case 'chromatic':
-        this.quantizer.setChromatic();
-        break;
-      case 'major':
-        this.quantizer.setMajorScale(0);
-        break;
-      case 'minor':
-        this.quantizer.setMinorScale(9);
-        break;
-      case 'penta-maj':
-        this.quantizer.setPentatonicMajor(0);
-        break;
-      case 'penta-min':
-        this.quantizer.setPentatonicMinor(9);
-        break;
-    }
-
-    this.updatePianoKeyboard();
-  }
-
-  updatePianoKeyboard() {
-    const mask = this.quantizer?.getNoteMask();
-    if (!mask) return;
-
-    const keys = document.querySelectorAll('.piano-key');
-    keys.forEach((key, i) => {
-      if (mask[i]) {
-        key.classList.add('active');
-      } else {
-        key.classList.remove('active');
-      }
-    });
   }
 
   syncUIWithParameters() {
@@ -1196,6 +1272,12 @@ class Phase5App {
     const fmEnable = document.getElementById('fmEnable');
     if (fmEnable) {
       fmEnable.checked = false;
+    }
+    
+    // Set default scale button as active
+    const majorBtn = document.querySelector('.scale-btn[data-scale="major"]');
+    if (majorBtn) {
+      majorBtn.classList.add('active');
     }
     
     console.log('UI synced - ready to modulate!');
