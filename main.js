@@ -371,8 +371,11 @@ class Phase4App {
 
     const fmEnable = document.getElementById('fmEnable');
       if (fmEnable) {
-      fmEnable.checked = false;  // Change from true to false
-    }
+        fmEnable.checked = false;  // Start disabled
+        fmEnable.addEventListener('change', (e) => {
+      this.toggleFM(e.target.checked);  // This was missing!
+    });
+}
 
     // Mangrove C controls
     this.bindKnob('mcPitch', (val) => this.mangroveC?.setPitch(val));
