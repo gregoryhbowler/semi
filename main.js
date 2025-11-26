@@ -97,14 +97,14 @@ class Phase4App {
       this.configureDefaults();
       
       // Update UI
-      document.getElementById('status').textContent = 'Ready - FM Enhanced';
+      document.getElementById('status').textContent = 'Ready - Through-Zero FM';
       document.getElementById('startBtn').disabled = false;
       
       // Sync UI with default values
       this.syncUIWithParameters();
       
       console.log('Phase 4 ENHANCED system initialized successfully');
-      console.log('FM Index now maps to 0-20 range for rich timbres');
+      console.log('THROUGH-ZERO FM: Index 0-10 range (phase reversal enabled)');
       
     } catch (error) {
       console.error('Failed to initialize system:', error);
@@ -126,12 +126,12 @@ class Phase4App {
     this.quantizer.setDepth(1.0);
     this.quantizer.setOffset(0);
 
-    // Mangrove A: Main voice, FM depth increased to 0.25 (Index 5.0)
+    // Mangrove A: Main voice, FM depth at 0.3 (Index 3.0 for through-zero)
     this.mangroveA.setPitch(0.5);
     this.mangroveA.setBarrel(0.3);
     this.mangroveA.setFormant(0.6);
     this.mangroveA.setAir(0.5);
-    this.mangroveA.setFMIndex(0.25); // NEW: Index 5.0 for complex tones
+    this.mangroveA.setFMIndex(0.3); // THROUGH-ZERO: Index 3.0 for harmonic FM
 
     // Mangrove B: FM source, slightly detuned for interesting FM
     this.mangroveB.setPitch(0.52); // Slightly higher than A
@@ -145,10 +145,11 @@ class Phase4App {
     this.mangroveC.setFormant(0.5);
     this.mangroveC.setAir(0.8);
     
-    console.log('Defaults configured with enhanced FM:');
-    console.log('- Mangrove A FM Index: 0.25 (synthesis index 5.0)');
+    console.log('Defaults configured with THROUGH-ZERO FM:');
+    console.log('- Mangrove A FM Index: 0.3 (synthesis index 3.0)');
+    console.log('- Phase reversal enabled (analog-style through-zero)');
     console.log('- FM enabled by default');
-    console.log('- Expect rich, complex timbres with multiple sidebands');
+    console.log('- Expect rich FM timbres without gating artifacts');
   }
 
   setupScope1() {
@@ -270,12 +271,12 @@ class Phase4App {
     this.startScope2();
     
     document.getElementById('startBtn').innerHTML = '<span class="btn-icon">⏸</span> Stop';
-    document.getElementById('status').textContent = 'Running - Enhanced FM Active';
+    document.getElementById('status').textContent = 'Running - Through-Zero FM Active';
     
-    console.log('Phase 4 ENHANCED system running');
-    console.log('Listen for rich, complex timbres with multiple sidebands');
+    console.log('Phase 4 system running with THROUGH-ZERO FM');
+    console.log('Listen for true FM timbres with phase reversal');
     console.log('Current FM Index:', this.mangroveA.params.fmIndex.value.toFixed(3),
-                '(Synthesis Index:', (this.mangroveA.params.fmIndex.value * 20).toFixed(1) + ')');
+                '(Synthesis Index:', (this.mangroveA.params.fmIndex.value * 10).toFixed(1) + ')');
   }
 
   stop() {
@@ -378,7 +379,7 @@ class Phase4App {
     this.bindKnob('maFmIndex', (val) => {
       this.mangroveA?.setFMIndex(val);
       // Log the actual FM synthesis index
-      const synthesisIndex = val * 20.0;
+      const synthesisIndex = val * 10.0;
       console.log(`FM Index updated: ${val.toFixed(3)} (Synthesis Index: ${synthesisIndex.toFixed(1)})`);
     });
 
@@ -531,7 +532,7 @@ class Phase4App {
       fmEnable.checked = true; // FM enabled by default now
     }
     
-    console.log('UI parameters synced - FM ENHANCED mode');
+    console.log('UI parameters synced - THROUGH-ZERO FM mode');
   }
 }
 
