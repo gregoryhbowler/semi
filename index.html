@@ -80,17 +80,17 @@
       
       <div class="param-row">
         <label for="quantDepth">depth</label>
-        <input type="range" id="quantDepth" min="0" max="1" step="0.01" value="0.4">
-        <span class="param-value" id="quantDepthValue">0.40</span>
+        <input type="range" id="quantDepth" min="0" max="8" step="0.01" value="1.0">
+        <span class="param-value" id="quantDepthValue">1.00</span>
       </div>
       <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: -8px; margin-bottom: 12px;">
-        octave range: 0 = single note, 1.0 = full octave
+        octave range: 0 = single note, 8 = eight octaves
       </div>
 
       <div class="param-row">
         <label for="quantOffset">offset</label>
-        <input type="range" id="quantOffset" min="-2" max="2" step="0.1" value="0">
-        <span class="param-value" id="quantOffsetValue">0.0</span>
+        <input type="range" id="quantOffset" min="-4" max="4" step="0.01" value="0">
+        <span class="param-value" id="quantOffsetValue">0.00</span>
       </div>
       <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: -8px; margin-bottom: 12px;">
         transpose after quantization
