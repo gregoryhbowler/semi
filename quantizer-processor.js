@@ -6,10 +6,10 @@
 class QuantizerProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
-      // Depth: scales incoming CV amplitude (0 = no modulation, 1 = full range)
+      // Depth: controls pitch range in octaves (0 = single note, 1 = 1 octave range)
       { name: 'depth', defaultValue: 1.0, minValue: 0, maxValue: 1 },
       
-      // Offset: shifts CV before quantization (-2V to +2V for transposition)
+      // Offset: shifts CV after quantization (-2V to +2V for transposition)
       { name: 'offset', defaultValue: 0.0, minValue: -2.0, maxValue: 2.0 }
     ];
   }
@@ -30,28 +30,30 @@ class QuantizerProcessor extends AudioWorkletProcessor {
   }
 
   // Find nearest allowed semitone within an octave (0-11)
-  // Returns the index of the closest allowed note
+  // Takes a fractional semitone value and rounds to nearest allowed note
   findNearestAllowedNote(semitonesInOctave) {
-    // Clamp to 0-11 range
-    let idx = Math.floor(semitonesInOctave) % 12;
-    if (idx < 0) idx += 12;
+    // Round to nearest integer first
+    let targetIdx = Math.round(semitonesInOctave);
+    
+    // Wrap to 0-11 range
+    while (targetIdx < 0) targetIdx += 12;
+    while (targetIdx >= 12) targetIdx -= 12;
     
     // If this note is allowed, use it
-    if (this.noteMask[idx]) {
-      return idx;
+    if (this.noteMask[targetIdx]) {
+      return targetIdx;
     }
     
     // Otherwise, spiral outward to find nearest allowed note
-    // Check up and down simultaneously
     for (let distance = 1; distance < 12; distance++) {
       // Check upward
-      const upIdx = (idx + distance) % 12;
+      const upIdx = (targetIdx + distance) % 12;
       if (this.noteMask[upIdx]) {
-        // Check if upward is closer than downward
-        const downIdx = (idx - distance + 12) % 12;
+        // Check if downward also has an allowed note at same distance
+        const downIdx = (targetIdx - distance + 12) % 12;
         if (this.noteMask[downIdx]) {
           // Both directions have allowed notes at same distance
-          // Choose the one closer to the fractional position
+          // Choose based on which side of the semitone we're on
           const frac = semitonesInOctave - Math.floor(semitonesInOctave);
           return frac >= 0.5 ? upIdx : downIdx;
         }
@@ -59,7 +61,7 @@ class QuantizerProcessor extends AudioWorkletProcessor {
       }
       
       // Check downward
-      const downIdx = (idx - distance + 12) % 12;
+      const downIdx = (targetIdx - distance + 12) % 12;
       if (this.noteMask[downIdx]) {
         return downIdx;
       }
@@ -77,6 +79,12 @@ class QuantizerProcessor extends AudioWorkletProcessor {
     // Split into octave and note-within-octave
     const octave = Math.floor(noteFloat / 12.0);
     const semitonesInOctave = noteFloat - (octave * 12.0);
+    
+    // Handle negative octaves correctly
+    if (semitonesInOctave < 0) {
+      // For negative voltages, adjust octave and semitone
+      return this.quantizeVoltage(voltsIn + (Math.abs(octave) + 1));
+    }
     
     // Find nearest allowed note in this octave
     const snappedIdx = this.findNearestAllowedNote(semitonesInOctave);
@@ -104,23 +112,28 @@ class QuantizerProcessor extends AudioWorkletProcessor {
       const depth = parameters.depth[i] ?? parameters.depth[0];
       const offset = parameters.offset[i] ?? parameters.offset[0];
       
-      // Read input CV (normalized ±1 in Web Audio = ±5V in Eurorack)
+      // Read input CV (Just Friends SHAPE outputs 0-8V, normalized as 0-1.6)
       const cvValue = cvIn[i] || 0;
       
-      // Convert to voltage
-      let volts = cvValue * 5.0; // Web Audio ±1 → ±5V
+      // Convert JF output (0-1.6) to 0-1 normalized range
+      // JF SHAPE: 0-8V → 0-1.6 in Web Audio
+      const normalized = Math.max(0, Math.min(1.6, cvValue)) / 1.6;
       
-      // Apply depth scaling
-      volts *= depth;
-      
-      // Apply offset
-      volts += offset;
+      // Apply depth: map to octave range
+      // depth = 1.0 → 1 octave (0-1V)
+      // depth = 0.5 → half octave (0-0.5V) 
+      // depth = 0 → no modulation (0V)
+      const volts = normalized * depth;
       
       // Quantize to nearest allowed note
       const quantizedVolts = this.quantizeVoltage(volts);
       
+      // Apply offset (transposition) AFTER quantization
+      const finalVolts = quantizedVolts + offset;
+      
       // Convert back to Web Audio normalized range
-      cvOut[i] = quantizedVolts / 5.0;
+      // For pitch CV: 1V/oct, so we keep it in voltage space
+      cvOut[i] = finalVolts / 5.0; // Normalize for Web Audio
     }
     
     return true;
