@@ -497,7 +497,7 @@ class Phase4App {
     
     const fmEnable = document.getElementById('fmEnable');
     if (fmEnable) {
-      fmEnable.checked = true;
+      fmEnable.checked = false;
     }
     
     console.log('UI synced - FIXED FM system ready');
