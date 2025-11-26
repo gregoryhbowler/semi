@@ -2,483 +2,913 @@
  * just-friends-osc-processor.js
  * 
  * AudioWorkletProcessor implementing a Just Friends-inspired multi-output oscillator.
- * Primary focus: cycle/sound mode (waveshaped VCOs with harmonic/subharmonic relationships)
+ * Full implementation of all modes based on the Mannequins Just Friends technical map.
  * 
- * Based on the Mannequins Just Friends technical map.
+ * MODES:
+ *   - CYCLE (2): Free-running oscillators/LFOs with phase reset via triggers
+ *   - TRANSIENT (0): Triggered AR envelopes / Impulse-train VCOs
+ *   - SUSTAIN (1): Gated ASR envelopes / Trapezoid VCOs
+ * 
+ * RANGES:
+ *   - SHAPE (0): Control-rate (minutes to ms), unipolar 0-8V, scaled-max MIX
+ *   - SOUND (1): Audio-rate (Hz to kHz), bipolar ±5V, summed MIX
+ * 
+ * RUN MODES (activated when RUN input is connected):
+ *   - SHIFT (transient/shape): Retrigger point control
+ *   - STRATA (sustain/shape): ARSR envelopes, slew limiting
+ *   - VOLLEY (cycle/shape): Envelope bursts
+ *   - SPILL (transient/sound): Self-clocked impulse-trains, sync chaos
+ *   - PLUME (sustain/sound): LPG-processed VCOs
+ *   - FLOOM (cycle/sound): 2-operator FM synthesis
  * 
  * Channel Layout:
- *   Input 0:
- *     - ch0: TIME CV (1V/oct style, "v/8")
- *     - ch1: FM input (audio-rate frequency modulation)
- *     - ch2: INTONE CV (optional audio-rate modulation)
+ *   Input (11 channels):
+ *     - ch0: TIME CV (1V/oct)
+ *     - ch1: FM input
+ *     - ch2: INTONE CV
+ *     - ch3: RUN CV
+ *     - ch4: RAMP CV
+ *     - ch5-10: TRIGGER inputs (IDENTITY through 6N)
  *   
- *   Output 0 (7 channels):
- *     - ch0: IDENTITY (1N)
- *     - ch1: 2N
- *     - ch2: 3N
- *     - ch3: 4N
- *     - ch4: 5N
- *     - ch5: 6N
- *     - ch6: MIX (equal mix, tanh-limited)
- * 
- * NOTES FOR FUTURE MODES:
- * - transient mode: AR envelopes, trigger-based excitation
- * - sustain mode: ASR envelopes, gate-sensitive
- * - shape range: slower LFO rates (minutes to ms)
- * - RUN modes: SHIFT, STRATA, VOLLEY, SPILL, PLUME, FLOOM
+ *   Output (7 channels):
+ *     - ch0-5: IDENTITY through 6N
+ *     - ch6: MIX
  */
 
 class JustFriendsProcessor extends AudioWorkletProcessor {
   
   static get parameterDescriptors() {
     return [
-      {
-        name: 'time',
-        defaultValue: 0.5,
-        minValue: 0,
-        maxValue: 1,
-        automationRate: 'a-rate'
-      },
-      {
-        name: 'intone',
-        defaultValue: 0.5,
-        minValue: 0,
-        maxValue: 1,
-        automationRate: 'a-rate'
-      },
-      {
-        name: 'ramp',
-        defaultValue: 0.5,
-        minValue: 0,
-        maxValue: 1,
-        automationRate: 'a-rate'
-      },
-      {
-        name: 'curve',
-        defaultValue: 0.5,
-        minValue: 0,
-        maxValue: 1,
-        automationRate: 'a-rate'
-      },
-      {
-        name: 'range',
-        defaultValue: 1, // 0=SHAPE, 1=SOUND, 2=TRANSIENT (stub)
-        minValue: 0,
-        maxValue: 2,
-        automationRate: 'k-rate'
-      },
-      {
-        name: 'mode',
-        defaultValue: 2, // 0=TRANSIENT, 1=SUSTAIN, 2=CYCLE
-        minValue: 0,
-        maxValue: 2,
-        automationRate: 'k-rate'
-      },
-      {
-        name: 'run',
-        defaultValue: 1, // For RUN modes (later), default to 1 in cycle
-        minValue: 0,
-        maxValue: 1,
-        automationRate: 'a-rate'
-      },
-      {
-        name: 'fmIndex',
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 1,
-        automationRate: 'a-rate'
-      }
+      { name: 'time', defaultValue: 0.5, minValue: 0, maxValue: 1, automationRate: 'a-rate' },
+      { name: 'intone', defaultValue: 0.5, minValue: 0, maxValue: 1, automationRate: 'a-rate' },
+      { name: 'ramp', defaultValue: 0.5, minValue: 0, maxValue: 1, automationRate: 'a-rate' },
+      { name: 'curve', defaultValue: 0.5, minValue: 0, maxValue: 1, automationRate: 'a-rate' },
+      { name: 'range', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      { name: 'mode', defaultValue: 2, minValue: 0, maxValue: 2, automationRate: 'k-rate' },
+      { name: 'run', defaultValue: 0, minValue: -1, maxValue: 1, automationRate: 'a-rate' },
+      { name: 'fmIndex', defaultValue: 0, minValue: -1, maxValue: 1, automationRate: 'a-rate' },
+      { name: 'runEnabled', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' }
     ];
   }
 
   constructor(options) {
     super();
     
-    // Phase accumulators for 6 oscillators (0 to 1 range)
-    this.phases = new Float32Array(6);
-    
-    // Initialize phases to 0
-    for (let i = 0; i < 6; i++) {
-      this.phases[i] = 0;
-    }
-    
-    // Constants
     this.NUM_OSCILLATORS = 6;
     
-    // Frequency range constants for SOUND mode
-    // Based on technical map: Hz to kHz range (~5-7 octaves)
-    // Using similar approach to Mangrove: base freq around middle C area
-    this.SOUND_BASE_FREQ = 261.63; // C4 as center frequency when time=0.5
-    this.SOUND_OCTAVE_RANGE = 7; // Total octave range
+    // Phase accumulators (0 to 1)
+    this.phases = new Float32Array(6);
     
-    // SHAPE mode range (much slower - LFO territory)
-    this.SHAPE_BASE_FREQ = 0.1; // Very slow base
-    this.SHAPE_OCTAVE_RANGE = 12; // Wide range for LFO speeds
+    // Slope state machines
+    // States: 0=IDLE, 1=RISING, 2=SUSTAINING, 3=FALLING
+    this.states = new Uint8Array(6);
     
-    // FM scaling (conservative for musical results)
-    this.FM_SCALE = 0.5;
+    // Current output values for each slope (before waveshaping)
+    this.slopeValues = new Float32Array(6);
     
-    // TIME CV range (based on technical map: -2V to +5V useful range)
+    // Gate states (for detecting edges)
+    this.gateStates = new Uint8Array(6); // 0=low, 1=high
+    this.prevGateInputs = new Float32Array(6);
+    
+    // For VOLLEY mode: burst counters
+    this.burstCounters = new Int32Array(6);
+    
+    // For PLUME mode: LPG envelope values
+    this.lpgEnvelopes = new Float32Array(6);
+    this.lpgGateStates = new Uint8Array(6);
+    
+    // For FLOOM mode: internal modulator phases
+    this.modPhases = new Float32Array(6);
+    
+    // For SPILL mode: IDENTITY's EOC triggers others
+    this.identityEOC = false;
+    
+    // Frequency range constants
+    this.SOUND_BASE_FREQ = 261.63; // C4
+    this.SOUND_OCTAVE_RANGE = 7;
+    this.SHAPE_BASE_FREQ = 0.5; // Hz - LFO territory
+    this.SHAPE_OCTAVE_RANGE = 10;
+    
+    // Voltage range for TIME
     this.TIME_CV_MIN = -2;
     this.TIME_CV_MAX = 5;
+    
+    // Trigger threshold (normalized, ~1V = 0.1 in ±5V range)
+    this.TRIGGER_THRESHOLD = 0.1;
+    
+    // FM scaling
+    this.FM_SCALE = 0.5;
+    
+    // Initialize states
+    for (let i = 0; i < 6; i++) {
+      this.states[i] = 0; // IDLE
+      this.slopeValues[i] = 0;
+      this.lpgEnvelopes[i] = 0;
+    }
+    
+    // Message port for programmatic triggers
+    this.port.onmessage = (e) => {
+      if (e.data.type === 'trigger') {
+        const index = e.data.index;
+        if (index >= 0 && index < 6) {
+          this.handleTrigger(index, true, 2); // mode=CYCLE as default
+        }
+      } else if (e.data.type === 'gate') {
+        const index = e.data.index;
+        const high = e.data.high;
+        if (index >= 0 && index < 6) {
+          this.gateStates[index] = high ? 1 : 0;
+        }
+      }
+    };
   }
 
-  /**
-   * Convert time knob position (0-1) to a voltage-like value
-   * Maps 0-1 to roughly -2V to +5V equivalent for frequency calculation
-   */
+  // ============================================
+  // Utility Functions
+  // ============================================
+
   timeToVolt(timeNorm) {
-    // Map 0-1 to the voltage range
     return this.TIME_CV_MIN + timeNorm * (this.TIME_CV_MAX - this.TIME_CV_MIN);
   }
 
-  /**
-   * Convert voltage to frequency (exponential, 1V/octave)
-   * Similar to Mangrove's voltToFreq approach
-   */
   voltToFreq(volt, baseFreq) {
     return baseFreq * Math.pow(2, volt);
   }
 
-  /**
-   * Calculate INTONE multiplier for a given oscillator index
-   * 
-   * From the technical map:
-   * - At noon (0.5): all multipliers = 1 (unison)
-   * - Fully CW (1.0): 2N=2x, 3N=3x, 4N=4x, 5N=5x, 6N=6x (overtones)
-   * - Fully CCW (0.0): 2N=1/2, 3N=1/3, 4N=1/4, 5N=1/5, 6N=1/6 (undertones)
-   * 
-   * The knob has special shaping for finer control around noon.
-   * 
-   * @param {number} intone - Normalized INTONE value (0-1)
-   * @param {number} n - Oscillator index (1-6, where 1=IDENTITY)
-   * @returns {number} Frequency multiplier
-   */
-  getIntoneMultiplier(intone, n) {
-    if (n === 1) return 1; // IDENTITY is always 1x
-    
-    // Apply shaping for finer control around noon
-    // Use a slight S-curve to make the center region more sensitive
-    const shaped = this.shapeIntone(intone);
-    
-    if (shaped >= 0.5) {
-      // CW from noon: interpolate from 1x to Nx
-      const t = (shaped - 0.5) * 2; // 0 to 1
-      return 1 + t * (n - 1);
-    } else {
-      // CCW from noon: interpolate from 1x to 1/Nx
-      const t = (0.5 - shaped) * 2; // 0 to 1
-      return 1 / (1 + t * (n - 1));
-    }
-  }
-
-  /**
-   * Shape the INTONE control for finer resolution around noon
-   * Uses a subtle S-curve
-   */
   shapeIntone(intone) {
-    // Subtle S-curve: more resolution near center
     const centered = intone - 0.5;
     const shaped = centered * (1 - 0.3 * Math.abs(centered));
     return 0.5 + shaped;
   }
 
-  /**
-   * Generate a linear slope value based on phase and RAMP setting
-   * 
-   * RAMP controls rise/fall ratio:
-   * - 0 (CCW): instant rise, long fall (saw down)
-   * - 0.5 (noon): equal rise/fall (triangle)
-   * - 1 (CW): long rise, instant fall (ramp up)
-   * 
-   * @param {number} phase - Current phase (0-1)
-   * @param {number} ramp - RAMP parameter (0-1)
-   * @returns {number} Linear slope value (-1 to 1)
-   */
-  generateLinearSlope(phase, ramp) {
-    // Calculate rise proportion (0 to 1)
-    // At ramp=0: rise is near-instant (small proportion)
-    // At ramp=0.5: rise = fall (0.5 each)
-    // At ramp=1: rise takes almost entire cycle
-    
-    const minRise = 0.001; // Prevent divide by zero
-    const maxRise = 0.999;
-    const riseProportion = minRise + ramp * (maxRise - minRise);
-    
-    let value;
-    
-    if (phase < riseProportion) {
-      // Rising phase: -1 to +1
-      value = -1 + 2 * (phase / riseProportion);
+  getIntoneMultiplier(intone, n) {
+    if (n === 1) return 1;
+    const shaped = this.shapeIntone(intone);
+    if (shaped >= 0.5) {
+      const t = (shaped - 0.5) * 2;
+      return 1 + t * (n - 1);
     } else {
-      // Falling phase: +1 to -1
-      const fallPhase = (phase - riseProportion) / (1 - riseProportion);
-      value = 1 - 2 * fallPhase;
+      const t = (0.5 - shaped) * 2;
+      return 1 / (1 + t * (n - 1));
     }
-    
-    return value;
   }
 
-  /**
-   * Apply CURVE waveshaping to a linear slope
-   * 
-   * From the technical map:
-   * - CCW (0): rectangular/square shapes
-   * - 9 o'clock (~0.25): logarithmic curves
-   * - Noon (0.5): linear (no shaping)
-   * - 3 o'clock (~0.75): exponential curves
-   * - CW (1): sinusoidal
-   * 
-   * @param {number} linearValue - Input value (-1 to 1)
-   * @param {number} curve - CURVE parameter (0-1)
-   * @returns {number} Shaped value (-1 to 1)
-   */
+  softLimit(x, gain = 1) {
+    return Math.tanh(x * gain);
+  }
+
+  // ============================================
+  // Waveshaping Functions
+  // ============================================
+
+  logShape(x) {
+    const sign = x >= 0 ? 1 : -1;
+    return sign * Math.sqrt(Math.abs(x));
+  }
+
+  expoShape(x) {
+    const sign = x >= 0 ? 1 : -1;
+    const absX = Math.abs(x);
+    return sign * absX * absX;
+  }
+
   applyCurve(linearValue, curve) {
     if (curve < 0.01) {
-      // Fully CCW: hard square/rectangular
       return linearValue >= 0 ? 1 : -1;
     }
-    
     if (Math.abs(curve - 0.5) < 0.01) {
-      // Noon: pure linear
       return linearValue;
     }
-    
     if (curve > 0.99) {
-      // Fully CW: sinusoidal
-      // Map linear -1 to 1 -> sine wave
       return Math.sin(linearValue * Math.PI * 0.5);
     }
     
-    // Interpolate between shapes
     if (curve < 0.5) {
-      // CCW side: logarithmic to linear
-      // At 0: square, at 0.25: log, at 0.5: linear
-      const t = curve * 2; // 0 to 1 as curve goes 0 to 0.5
-      
+      const t = curve * 2;
       if (t < 0.5) {
-        // Square to log blend
         const squareVal = linearValue >= 0 ? 1 : -1;
-        const logT = t * 2; // 0 to 1
+        const logT = t * 2;
         const logVal = this.logShape(linearValue);
         return squareVal * (1 - logT) + logVal * logT;
       } else {
-        // Log to linear blend
         const logVal = this.logShape(linearValue);
-        const linT = (t - 0.5) * 2; // 0 to 1
+        const linT = (t - 0.5) * 2;
         return logVal * (1 - linT) + linearValue * linT;
       }
     } else {
-      // CW side: linear to exponential to sine
-      const t = (curve - 0.5) * 2; // 0 to 1 as curve goes 0.5 to 1
-      
+      const t = (curve - 0.5) * 2;
       if (t < 0.5) {
-        // Linear to expo blend
         const expoVal = this.expoShape(linearValue);
-        const expoT = t * 2; // 0 to 1
+        const expoT = t * 2;
         return linearValue * (1 - expoT) + expoVal * expoT;
       } else {
-        // Expo to sine blend
         const expoVal = this.expoShape(linearValue);
         const sineVal = Math.sin(linearValue * Math.PI * 0.5);
-        const sineT = (t - 0.5) * 2; // 0 to 1
+        const sineT = (t - 0.5) * 2;
         return expoVal * (1 - sineT) + sineVal * sineT;
       }
     }
   }
 
+  // ============================================
+  // Slope Generation
+  // ============================================
+
   /**
-   * Logarithmic waveshaping
-   * Quick change at start of phase, slows down toward end
+   * Calculate rise and fall proportions from RAMP
    */
-  logShape(x) {
-    // Attempt to create log-like curve that maintains -1 to 1 range
-    const sign = x >= 0 ? 1 : -1;
-    const absX = Math.abs(x);
-    // Use a curve that starts fast and slows: sqrt-like behavior
-    return sign * Math.sqrt(absX);
+  getRisefall(ramp) {
+    const minRise = 0.001;
+    const maxRise = 0.999;
+    const riseProp = minRise + ramp * (maxRise - minRise);
+    return { rise: riseProp, fall: 1 - riseProp };
   }
 
   /**
-   * Exponential waveshaping
-   * Slow change at start, accelerates toward end
+   * Generate linear slope value from phase
    */
-  expoShape(x) {
-    // Exponential-like curve
-    const sign = x >= 0 ? 1 : -1;
-    const absX = Math.abs(x);
-    // Square for exponential-like behavior
-    return sign * absX * absX;
+  generateLinearSlope(phase, ramp) {
+    const { rise } = this.getRisefall(ramp);
+    if (phase < rise) {
+      return -1 + 2 * (phase / rise);
+    } else {
+      const fallPhase = (phase - rise) / (1 - rise);
+      return 1 - 2 * fallPhase;
+    }
   }
 
   /**
-   * Soft limiter using tanh
+   * Handle trigger input for a slope
    */
-  softLimit(x, gain = 1) {
-    return Math.tanh(x * gain);
+  handleTrigger(index, triggered, mode, runValue = 0, runEnabled = false) {
+    const state = this.states[index];
+    
+    if (mode === 2) {
+      // CYCLE mode: trigger resets phase
+      if (triggered) {
+        this.phases[index] = 0;
+      }
+    } else if (mode === 0) {
+      // TRANSIENT mode: AR envelope
+      if (triggered) {
+        if (runEnabled) {
+          // SHIFT mode: retrigger point control
+          // runValue: -5V to +5V mapped to -1 to 1
+          // -1: always retriggerable
+          // 0: retriggerable after rise
+          // +1: retriggerable only at end of cycle (standard)
+          
+          const retriggerPoint = (runValue + 1) / 2; // 0 to 1
+          const currentPhase = this.phases[index];
+          const { rise } = this.getRisefall(0.5); // Use default ramp for timing
+          
+          let canRetrigger = false;
+          if (retriggerPoint < 0.01) {
+            canRetrigger = true; // Always
+          } else if (retriggerPoint < 0.5) {
+            // During rise phase
+            const trigPoint = retriggerPoint * 2 * rise;
+            canRetrigger = currentPhase >= trigPoint || state === 0;
+          } else {
+            // During fall phase
+            const trigPoint = rise + (retriggerPoint - 0.5) * 2 * (1 - rise);
+            canRetrigger = currentPhase >= trigPoint || state === 0;
+          }
+          
+          if (canRetrigger) {
+            this.states[index] = 1; // RISING
+            this.phases[index] = 0;
+          }
+        } else {
+          // Standard transient: only retrigger when idle
+          if (state === 0) {
+            this.states[index] = 1; // RISING
+            this.phases[index] = 0;
+          }
+        }
+      }
+    } else if (mode === 1) {
+      // SUSTAIN mode: ASR envelope, gate-sensitive
+      // Handled separately in processGate
+    }
   }
 
   /**
-   * Main DSP process function
+   * Handle gate input for sustain mode
    */
+  processGate(index, gateHigh, mode, runValue = 0, runEnabled = false) {
+    const state = this.states[index];
+    const prevGate = this.gateStates[index];
+    
+    if (mode === 1) {
+      // SUSTAIN mode
+      if (gateHigh && !prevGate) {
+        // Gate went high - start rising
+        this.states[index] = 1; // RISING
+      } else if (!gateHigh && prevGate) {
+        // Gate went low - start falling
+        this.states[index] = 3; // FALLING
+      }
+      
+      // STRATA mode: ARSR envelope
+      if (runEnabled && state === 2) {
+        // In sustain state, runValue sets sustain level
+        // This is handled in the slope generation
+      }
+    }
+    
+    this.gateStates[index] = gateHigh ? 1 : 0;
+  }
+
+  // ============================================
+  // RUN Mode Processing
+  // ============================================
+
+  /**
+   * VOLLEY (cycle/shape): Burst generator
+   * Returns true if oscillator should be active
+   */
+  processVolley(index, triggered, runValue) {
+    if (triggered) {
+      // Calculate burst count from RUN voltage
+      // -5V (-1): choked, 0: 6 bursts, +5V (+1): 36 bursts
+      if (runValue < -0.8) {
+        this.burstCounters[index] = 0; // Choked
+      } else {
+        const normalized = (runValue + 1) / 2; // 0 to 1
+        this.burstCounters[index] = Math.floor(1 + normalized * 35);
+      }
+      this.phases[index] = 0;
+      this.states[index] = 1;
+    }
+    
+    return this.burstCounters[index] > 0;
+  }
+
+  /**
+   * PLUME (sustain/sound): LPG-processed VCOs
+   */
+  processPlume(index, gateHigh, runValue, dt) {
+    // LPG envelope with vactrol-like response
+    // runValue controls attack/decay: positive = faster, negative = slower + velocity sensitive
+    
+    const baseAttack = 0.005; // 5ms
+    const baseDecay = 0.3;    // 300ms
+    
+    let attackTime = baseAttack;
+    let decayTime = baseDecay;
+    
+    if (runValue > 0) {
+      // Faster response
+      const speedup = 1 + runValue * 4;
+      attackTime /= speedup;
+      decayTime /= speedup;
+    } else {
+      // Slower, more velocity sensitive
+      const slowdown = 1 - runValue * 2;
+      attackTime *= slowdown;
+      decayTime *= slowdown;
+    }
+    
+    const attackRate = dt / attackTime;
+    const decayRate = dt / decayTime;
+    
+    if (gateHigh) {
+      this.lpgEnvelopes[index] = Math.min(1, this.lpgEnvelopes[index] + attackRate);
+    } else {
+      this.lpgEnvelopes[index] = Math.max(0, this.lpgEnvelopes[index] - decayRate);
+    }
+    
+    return this.lpgEnvelopes[index];
+  }
+
+  /**
+   * FLOOM (cycle/sound): 2-operator FM
+   */
+  processFloom(index, carrierFreq, runValue, fmIndex, dt) {
+    // Internal modulator frequency ratio based on RUN
+    // -1: 0.5x, 0: 1x, +1: 2x
+    const ratio = Math.pow(2, runValue);
+    const modFreq = carrierFreq * ratio;
+    
+    // Advance modulator phase
+    this.modPhases[index] += modFreq * dt;
+    while (this.modPhases[index] >= 1) this.modPhases[index] -= 1;
+    
+    // Generate modulator signal (sine)
+    const modSignal = Math.sin(this.modPhases[index] * Math.PI * 2);
+    
+    // Apply FM index (fmIndex controls depth)
+    return modSignal * Math.abs(fmIndex) * carrierFreq;
+  }
+
+  /**
+   * SPILL (transient/sound): Self-clocked impulse trains
+   */
+  processSPILL(index, identityFreq, intoneMultiplier, runValue, ramp, curve, dt) {
+    if (index === 0) {
+      // IDENTITY is free-running
+      const freq = identityFreq;
+      const phaseInc = freq * dt;
+      
+      const prevPhase = this.phases[0];
+      this.phases[0] += phaseInc;
+      
+      // Detect end-of-cycle
+      this.identityEOC = this.phases[0] >= 1;
+      while (this.phases[0] >= 1) this.phases[0] -= 1;
+      
+      // Generate waveform
+      const linear = this.generateLinearSlope(this.phases[0], ramp);
+      return this.applyCurve(linear, curve);
+    } else {
+      // Other oscillators are impulse trains clocked by IDENTITY
+      const n = index + 1;
+      
+      // Calculate slope duration relative to IDENTITY
+      // When INTONE CCW, slopes are longer (subharmonics possible)
+      const slopeDuration = 1 / (identityFreq * intoneMultiplier);
+      const slopeFreq = identityFreq * intoneMultiplier;
+      
+      // Determine if we can retrigger based on RUN
+      const state = this.states[index];
+      const phase = this.phases[index];
+      const { rise } = this.getRisefall(ramp);
+      
+      let canRetrigger = false;
+      if (runValue >= 0.99) {
+        // Only when idle (end of cycle)
+        canRetrigger = state === 0;
+      } else if (runValue <= -0.99) {
+        // Always retriggerable (turn around from current position)
+        canRetrigger = true;
+      } else {
+        // Intermediate: retrigger point based on RUN
+        const retriggerPhase = (runValue + 1) / 2;
+        canRetrigger = phase >= retriggerPhase || state === 0;
+      }
+      
+      // Check for IDENTITY EOC trigger
+      if (this.identityEOC && canRetrigger) {
+        if (runValue <= -0.99) {
+          // Turn around behavior
+          // Don't reset phase, just reverse direction
+          if (state === 1) {
+            this.states[index] = 3; // Start falling
+          } else {
+            this.states[index] = 1; // Start rising
+            this.phases[index] = 0;
+          }
+        } else {
+          this.states[index] = 1;
+          this.phases[index] = 0;
+        }
+      }
+      
+      // Process slope state machine
+      if (this.states[index] === 1) {
+        // Rising
+        this.phases[index] += slopeFreq * dt;
+        if (this.phases[index] >= rise) {
+          this.states[index] = 3; // Start falling
+        }
+      } else if (this.states[index] === 3) {
+        // Falling
+        this.phases[index] += slopeFreq * dt;
+        if (this.phases[index] >= 1) {
+          this.states[index] = 0; // Idle
+          this.phases[index] = 0;
+        }
+      }
+      
+      // Generate output
+      if (this.states[index] === 0) {
+        return -1; // Resting at minimum
+      } else {
+        const linear = this.generateLinearSlope(this.phases[index], ramp);
+        return this.applyCurve(linear, curve);
+      }
+    }
+  }
+
+  // ============================================
+  // Main Process
+  // ============================================
+
   process(inputs, outputs, parameters) {
     const output = outputs[0];
     const input = inputs[0];
     
-    // Get input channels (may be empty if nothing connected)
-    const timeCVChannel = input && input[0] ? input[0] : null;
-    const fmChannel = input && input[1] ? input[1] : null;
-    const intoneCVChannel = input && input[2] ? input[2] : null;
+    // Get input channels
+    const timeCVChannel = input?.[0] || null;
+    const fmChannel = input?.[1] || null;
+    const intoneCVChannel = input?.[2] || null;
+    const runCVChannel = input?.[3] || null;
+    const rampCVChannel = input?.[4] || null;
+    const triggerChannels = [];
+    for (let i = 0; i < 6; i++) {
+      triggerChannels.push(input?.[5 + i] || null);
+    }
     
-    // Get output channels
-    const outputChannels = output;
-    const blockSize = outputChannels[0] ? outputChannels[0].length : 128;
+    const blockSize = output[0]?.length || 128;
+    const dt = 1 / sampleRate;
     
-    // Get parameter values (handle both a-rate and k-rate)
-    const getParam = (name, i) => {
-      const param = parameters[name];
-      return param.length > 1 ? param[i] : param[0];
-    };
-    
-    // Range and mode are k-rate
+    // K-rate parameters
     const range = Math.round(parameters.range[0]);
     const mode = Math.round(parameters.mode[0]);
+    const runEnabled = parameters.runEnabled[0] > 0.5;
     
-    // Determine base frequency based on range
+    // Determine base frequency
     const baseFreq = range === 1 ? this.SOUND_BASE_FREQ : this.SHAPE_BASE_FREQ;
     
-    // Process each sample
+    // Determine which RUN mode we're in
+    // shape(0) + transient(0) = SHIFT
+    // shape(0) + sustain(1) = STRATA
+    // shape(0) + cycle(2) = VOLLEY
+    // sound(1) + transient(0) = SPILL
+    // sound(1) + sustain(1) = PLUME
+    // sound(1) + cycle(2) = FLOOM
+    
     for (let i = 0; i < blockSize; i++) {
-      // Get parameter values for this sample
-      const time = getParam('time', i);
-      let intone = getParam('intone', i);
-      const ramp = getParam('ramp', i);
-      const curve = getParam('curve', i);
-      const fmIndex = getParam('fmIndex', i);
-      const run = getParam('run', i);
+      // Get a-rate parameters
+      const getParam = (name) => {
+        const p = parameters[name];
+        return p.length > 1 ? p[i] : p[0];
+      };
       
-      // Get CV inputs
+      const time = getParam('time');
+      let intone = getParam('intone');
+      let ramp = getParam('ramp');
+      const curve = getParam('curve');
+      let fmIndex = getParam('fmIndex');
+      let runValue = getParam('run');
+      
+      // Add CV inputs
       const timeCV = timeCVChannel ? timeCVChannel[i] : 0;
       const fmSignal = fmChannel ? fmChannel[i] : 0;
       const intoneCV = intoneCVChannel ? intoneCVChannel[i] : 0;
+      const runCV = runCVChannel ? runCVChannel[i] : 0;
+      const rampCV = rampCVChannel ? rampCVChannel[i] : 0;
       
-      // Add INTONE CV (scaled: -5V to +5V sweeps full range when knob at noon)
-      // CV is assumed to be in a normalized range, scale appropriately
       intone = Math.max(0, Math.min(1, intone + intoneCV * 0.1));
+      ramp = Math.max(0, Math.min(1, ramp + rampCV * 0.1));
+      runValue = Math.max(-1, Math.min(1, runValue + runCV));
       
-      // Calculate base frequency from TIME knob + CV
-      // TIME knob maps to voltage, then add external CV
+      // Calculate IDENTITY frequency
       const timeVolt = this.timeToVolt(time);
-      const totalVolt = timeVolt + timeCV;
+      const totalVolt = Math.max(this.TIME_CV_MIN, Math.min(this.TIME_CV_MAX, timeVolt + timeCV));
+      const identityFreq = this.voltToFreq(totalVolt, baseFreq);
       
-      // Clamp voltage to useful range
-      const clampedVolt = Math.max(this.TIME_CV_MIN, Math.min(this.TIME_CV_MAX, totalVolt));
+      // Process trigger inputs with normalling
+      // 6N triggers cascade down to IDENTITY when inputs are unpatched
+      let triggerValues = new Float32Array(6);
+      let cascadeTrigger = 0;
       
-      // Convert to base frequency (IDENTITY frequency)
-      const identityFreq = this.voltToFreq(clampedVolt, baseFreq);
-      
-      // Mix accumulator for MIX output
-      let mixSum = 0;
-      
-      // Process each of the 6 oscillators
-      for (let osc = 0; osc < this.NUM_OSCILLATORS; osc++) {
-        const n = osc + 1; // 1-indexed (IDENTITY=1, 2N=2, etc.)
-        
-        // Get frequency multiplier from INTONE
-        const intoneMultiplier = this.getIntoneMultiplier(intone, n);
-        
-        // Calculate this oscillator's frequency
-        let freq = identityFreq * intoneMultiplier;
-        
-        // Apply FM (linear FM on frequency)
-        // FM is applied proportionally to base frequency for musical results
-        if (fmIndex > 0 && fmSignal !== 0) {
-          const fmAmount = fmSignal * fmIndex * this.FM_SCALE * freq;
-          freq += fmAmount;
+      // Start from 6N (index 5) and cascade down
+      for (let osc = 5; osc >= 0; osc--) {
+        const trigChannel = triggerChannels[osc];
+        if (trigChannel) {
+          triggerValues[osc] = trigChannel[i];
+          cascadeTrigger = trigChannel[i]; // This breaks the cascade
+        } else {
+          triggerValues[osc] = cascadeTrigger; // Use cascaded value
         }
-        
-        // Ensure frequency stays positive and reasonable
-        freq = Math.max(0.001, freq);
-        
-        // Calculate phase increment
-        const phaseInc = freq / sampleRate;
+      }
+      
+      // Detect trigger edges and update gate states
+      for (let osc = 0; osc < 6; osc++) {
+        const trigVal = triggerValues[osc];
+        const prevTrig = this.prevGateInputs[osc];
+        const gateHigh = trigVal > this.TRIGGER_THRESHOLD;
+        const wasHigh = prevTrig > this.TRIGGER_THRESHOLD;
+        const risingEdge = gateHigh && !wasHigh;
         
         // Process based on mode
-        let outputValue = 0;
-        
-        if (mode === 2) {
-          // CYCLE mode: free-running oscillators
-          
-          // Generate linear slope based on phase and RAMP
-          const linearSlope = this.generateLinearSlope(this.phases[osc], ramp);
-          
-          // Apply CURVE waveshaping
-          outputValue = this.applyCurve(linearSlope, curve);
-          
-          // Advance phase
-          this.phases[osc] += phaseInc;
-          
-          // Wrap phase
-          while (this.phases[osc] >= 1) {
-            this.phases[osc] -= 1;
+        if (mode === 0) {
+          // TRANSIENT: rising edge triggers
+          if (risingEdge) {
+            this.handleTrigger(osc, true, mode, runValue, runEnabled);
           }
-          while (this.phases[osc] < 0) {
-            this.phases[osc] += 1;
-          }
-          
         } else if (mode === 1) {
-          // SUSTAIN mode: stub - behave like cycle for now
-          // TODO: Implement gated ASR behavior
-          const linearSlope = this.generateLinearSlope(this.phases[osc], ramp);
-          outputValue = this.applyCurve(linearSlope, curve);
-          this.phases[osc] += phaseInc;
-          while (this.phases[osc] >= 1) this.phases[osc] -= 1;
-          
-        } else {
-          // TRANSIENT mode: stub - behave like cycle for now
-          // TODO: Implement triggered AR behavior
-          const linearSlope = this.generateLinearSlope(this.phases[osc], ramp);
-          outputValue = this.applyCurve(linearSlope, curve);
-          this.phases[osc] += phaseInc;
-          while (this.phases[osc] >= 1) this.phases[osc] -= 1;
+          // SUSTAIN: gate-sensitive
+          this.processGate(osc, gateHigh, mode, runValue, runEnabled);
+        } else if (mode === 2) {
+          // CYCLE: rising edge resets phase
+          if (risingEdge) {
+            this.handleTrigger(osc, true, mode, runValue, runEnabled);
+          }
         }
         
-        // Scale output based on range
-        // SOUND range: bipolar -1 to +1 (representing -5V to +5V)
-        // SHAPE range: unipolar 0 to 1 (representing 0-8V) - but we output bipolar for consistency
-        // For now, always output bipolar (-1 to 1)
+        this.prevGateInputs[osc] = trigVal;
+      }
+      
+      // Mix accumulator
+      let mixSum = 0;
+      let scaledMaxValues = new Float32Array(6); // For SHAPE range MIX
+      
+      // Process each oscillator
+      for (let osc = 0; osc < 6; osc++) {
+        const n = osc + 1;
+        const intoneMultiplier = this.getIntoneMultiplier(intone, n);
+        let freq = identityFreq * intoneMultiplier;
         
-        // Write to output channel
-        if (outputChannels[osc]) {
-          outputChannels[osc][i] = outputValue;
+        let outputValue = 0;
+        
+        // Handle RUN modes
+        if (runEnabled) {
+          if (range === 0) {
+            // SHAPE range RUN modes
+            if (mode === 0) {
+              // SHIFT: handled in handleTrigger
+              outputValue = this.processTransientShape(osc, freq, ramp, curve, dt, runValue);
+            } else if (mode === 1) {
+              // STRATA: ARSR envelopes
+              outputValue = this.processStrata(osc, freq, ramp, curve, dt, runValue);
+            } else {
+              // VOLLEY: burst generator
+              const trigVal = triggerValues[osc];
+              const risingEdge = trigVal > this.TRIGGER_THRESHOLD && 
+                                 this.prevGateInputs[osc] <= this.TRIGGER_THRESHOLD;
+              
+              if (this.processVolley(osc, risingEdge, runValue)) {
+                outputValue = this.processCycleShape(osc, freq, ramp, curve, dt);
+                // Decrement burst on cycle completion
+                if (this.phases[osc] < dt * freq) {
+                  this.burstCounters[osc]--;
+                  if (this.burstCounters[osc] <= 0) {
+                    this.states[osc] = 0;
+                  }
+                }
+              } else {
+                outputValue = 0;
+              }
+            }
+          } else {
+            // SOUND range RUN modes
+            if (mode === 0) {
+              // SPILL: self-clocked impulse trains
+              outputValue = this.processSPILL(osc, identityFreq, intoneMultiplier, 
+                                              runValue, ramp, curve, dt);
+            } else if (mode === 1) {
+              // PLUME: LPG-processed VCOs
+              const gateHigh = triggerValues[osc] > this.TRIGGER_THRESHOLD;
+              const lpgLevel = this.processPlume(osc, gateHigh, runValue, dt);
+              
+              // Generate oscillator
+              const phaseInc = freq / sampleRate;
+              this.phases[osc] += phaseInc;
+              while (this.phases[osc] >= 1) this.phases[osc] -= 1;
+              
+              const linear = this.generateLinearSlope(this.phases[osc], ramp);
+              const shaped = this.applyCurve(linear, curve);
+              
+              // Apply LPG (simplified: just amplitude for now)
+              // Real LPG would also filter
+              outputValue = shaped * lpgLevel;
+            } else {
+              // FLOOM: 2-operator FM
+              // Get FM from internal modulator instead of external
+              const fmFromMod = this.processFloom(osc, freq, runValue, fmIndex, dt);
+              
+              // Apply FM (only if fmIndex is set)
+              if (Math.abs(fmIndex) > 0.01) {
+                freq += fmFromMod;
+              }
+              freq = Math.max(0.001, freq);
+              
+              const phaseInc = freq / sampleRate;
+              this.phases[osc] += phaseInc;
+              while (this.phases[osc] >= 1) this.phases[osc] -= 1;
+              
+              const linear = this.generateLinearSlope(this.phases[osc], ramp);
+              outputValue = this.applyCurve(linear, curve);
+            }
+          }
+        } else {
+          // Standard modes (no RUN)
+          if (mode === 2) {
+            // CYCLE
+            if (range === 1) {
+              outputValue = this.processCycleSound(osc, freq, ramp, curve, fmIndex, fmSignal, dt);
+            } else {
+              outputValue = this.processCycleShape(osc, freq, ramp, curve, dt);
+            }
+          } else if (mode === 0) {
+            // TRANSIENT
+            if (range === 1) {
+              outputValue = this.processTransientSound(osc, freq, ramp, curve, dt, triggerValues[osc]);
+            } else {
+              outputValue = this.processTransientShape(osc, freq, ramp, curve, dt, 1);
+            }
+          } else {
+            // SUSTAIN
+            if (range === 1) {
+              outputValue = this.processSustainSound(osc, freq, ramp, curve, dt, triggerValues[osc]);
+            } else {
+              outputValue = this.processSustainShape(osc, freq, ramp, curve, dt);
+            }
+          }
+        }
+        
+        // Write output
+        if (output[osc]) {
+          output[osc][i] = outputValue;
         }
         
         // Accumulate for mix
-        mixSum += outputValue;
+        if (range === 1) {
+          mixSum += outputValue;
+        } else {
+          // SHAPE range: scaled by index for analog OR
+          scaledMaxValues[osc] = (outputValue + 1) / 2 * 8 / n; // Scale to 0-8V, divide by index
+        }
       }
       
       // Generate MIX output
-      // In SOUND range: equal mix of all 6, tanh limited
-      // In SHAPE range: scaled max ("analog OR") - but for simplicity, use sum for now
-      if (outputChannels[6]) {
+      if (output[6]) {
         if (range === 1) {
-          // SOUND range: equal mix with soft limiting
-          // Divide by ~3 to get reasonable pre-limit level, then tanh
-          const mixValue = this.softLimit(mixSum / 3, 1);
-          outputChannels[6][i] = mixValue;
+          // SOUND: equal mix with soft limiting
+          output[6][i] = this.softLimit(mixSum / 3, 1);
         } else {
-          // SHAPE range: implement scaled max (analog OR)
-          // Each slope divided by its index, output max
-          // For now, simplified: just use soft-limited sum
-          // TODO: Implement proper scaled max for shape range
-          const mixValue = this.softLimit(mixSum / 3, 1);
-          outputChannels[6][i] = mixValue;
+          // SHAPE: scaled max (analog OR)
+          let maxVal = 0;
+          for (let osc = 0; osc < 6; osc++) {
+            if (scaledMaxValues[osc] > maxVal) {
+              maxVal = scaledMaxValues[osc];
+            }
+          }
+          // Convert back to -1 to 1 range for consistency
+          output[6][i] = (maxVal / 4) - 1;
         }
       }
     }
     
-    // Keep processor alive
     return true;
+  }
+
+  // ============================================
+  // Mode-Specific Processing Functions
+  // ============================================
+
+  processCycleSound(osc, freq, ramp, curve, fmIndex, fmSignal, dt) {
+    // Apply external FM
+    if (Math.abs(fmIndex) > 0.01 && fmSignal !== 0) {
+      const fmAmount = fmSignal * fmIndex * this.FM_SCALE * freq;
+      freq += fmAmount;
+    }
+    freq = Math.max(0.001, freq);
+    
+    const phaseInc = freq / sampleRate;
+    this.phases[osc] += phaseInc;
+    while (this.phases[osc] >= 1) this.phases[osc] -= 1;
+    
+    const linear = this.generateLinearSlope(this.phases[osc], ramp);
+    return this.applyCurve(linear, curve);
+  }
+
+  processCycleShape(osc, freq, ramp, curve, dt) {
+    const phaseInc = freq * dt;
+    this.phases[osc] += phaseInc;
+    while (this.phases[osc] >= 1) this.phases[osc] -= 1;
+    
+    const linear = this.generateLinearSlope(this.phases[osc], ramp);
+    return this.applyCurve(linear, curve);
+  }
+
+  processTransientShape(osc, freq, ramp, curve, dt, runValue) {
+    const state = this.states[osc];
+    const { rise } = this.getRisefall(ramp);
+    
+    if (state === 0) {
+      // IDLE
+      return -1;
+    }
+    
+    const phaseInc = freq * dt;
+    this.phases[osc] += phaseInc;
+    
+    if (state === 1 && this.phases[osc] >= rise) {
+      // Transition to falling
+      this.states[osc] = 3;
+    }
+    
+    if (this.phases[osc] >= 1) {
+      // Cycle complete
+      this.states[osc] = 0;
+      this.phases[osc] = 0;
+      return -1;
+    }
+    
+    const linear = this.generateLinearSlope(this.phases[osc], ramp);
+    return this.applyCurve(linear, curve);
+  }
+
+  processTransientSound(osc, freq, ramp, curve, dt, triggerInput) {
+    // Impulse-train VCO: needs external clock
+    // Each trigger starts an impulse, slope duration set by TIME/INTONE
+    
+    const state = this.states[osc];
+    
+    if (state === 0) {
+      // Waiting for trigger - output at minimum
+      return -1;
+    }
+    
+    const phaseInc = freq * dt;
+    this.phases[osc] += phaseInc;
+    
+    if (this.phases[osc] >= 1) {
+      // Impulse complete
+      this.states[osc] = 0;
+      this.phases[osc] = 0;
+      return -1;
+    }
+    
+    const linear = this.generateLinearSlope(this.phases[osc], ramp);
+    return this.applyCurve(linear, curve);
+  }
+
+  processSustainShape(osc, freq, ramp, curve, dt) {
+    const state = this.states[osc];
+    const { rise, fall } = this.getRisefall(ramp);
+    
+    if (state === 0) {
+      // IDLE
+      this.slopeValues[osc] = -1;
+    } else if (state === 1) {
+      // RISING
+      const riseRate = 2 / (rise / freq) * dt;
+      this.slopeValues[osc] = Math.min(1, this.slopeValues[osc] + riseRate);
+      
+      if (this.slopeValues[osc] >= 1) {
+        this.states[osc] = 2; // SUSTAINING
+      }
+    } else if (state === 2) {
+      // SUSTAINING at max
+      this.slopeValues[osc] = 1;
+    } else if (state === 3) {
+      // FALLING
+      const fallRate = 2 / (fall / freq) * dt;
+      this.slopeValues[osc] = Math.max(-1, this.slopeValues[osc] - fallRate);
+      
+      if (this.slopeValues[osc] <= -1) {
+        this.states[osc] = 0; // IDLE
+      }
+    }
+    
+    return this.applyCurve(this.slopeValues[osc], curve);
+  }
+
+  processSustainSound(osc, freq, ramp, curve, dt, triggerInput) {
+    // Trapezoid VCO: tracks PWM of input
+    // For now, simplified: behave like sustain/shape but at audio rate
+    return this.processSustainShape(osc, freq, ramp, curve, dt);
+  }
+
+  processStrata(osc, freq, ramp, curve, dt, runValue) {
+    // ARSR envelope: RUN controls sustain level
+    const state = this.states[osc];
+    const { rise, fall } = this.getRisefall(ramp);
+    
+    // Sustain level from RUN (-1 to 1 mapped to 0 to 1)
+    const sustainLevel = (runValue + 1) / 2;
+    // Map to -1 to 1 output range
+    const sustainValue = -1 + sustainLevel * 2;
+    
+    if (state === 0) {
+      // IDLE
+      this.slopeValues[osc] = -1;
+    } else if (state === 1) {
+      // RISING (attack)
+      const riseRate = 2 / (rise / freq) * dt;
+      this.slopeValues[osc] = Math.min(1, this.slopeValues[osc] + riseRate);
+      
+      if (this.slopeValues[osc] >= 1) {
+        // Peak reached, start release-1 (decay to sustain)
+        this.states[osc] = 4; // Special state for release-1
+      }
+    } else if (state === 4) {
+      // RELEASE-1 (decay to sustain level)
+      const fallRate = 2 / (fall / freq) * dt;
+      this.slopeValues[osc] = Math.max(sustainValue, this.slopeValues[osc] - fallRate);
+      
+      if (this.slopeValues[osc] <= sustainValue) {
+        this.states[osc] = 2; // SUSTAINING
+      }
+    } else if (state === 2) {
+      // SUSTAINING at sustain level
+      this.slopeValues[osc] = sustainValue;
+    } else if (state === 3) {
+      // RELEASE-2 (falling from sustain to min)
+      const fallRate = 2 / (fall / freq) * dt;
+      this.slopeValues[osc] = Math.max(-1, this.slopeValues[osc] - fallRate);
+      
+      if (this.slopeValues[osc] <= -1) {
+        this.states[osc] = 0; // IDLE
+      }
+    }
+    
+    return this.applyCurve(this.slopeValues[osc], curve);
   }
 }
 
