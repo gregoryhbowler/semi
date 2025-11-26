@@ -1,4 +1,4 @@
-/* styles.css - Mangrove Interface */
+/* styles.css - Mangrove Interface + Just Friends Osc Integration */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
@@ -460,6 +460,210 @@ body {
   color: var(--text-primary);
 }
 
+/* Focus states for accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+/* ========== OSCILLATOR SELECTION ========== */
+
+.oscillator-select-panel {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, 
+    rgba(220, 200, 255, 0.6) 0%, 
+    rgba(200, 220, 255, 0.6) 100%);
+}
+
+.osc-toggle-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.osc-toggle-btn {
+  padding: var(--space-md);
+  background: rgba(255, 255, 255, 0.6);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.osc-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: var(--border-medium);
+  transform: translateY(-2px);
+}
+
+.osc-toggle-btn.active {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  box-shadow: 0 4px 12px rgba(42, 42, 42, 0.2);
+}
+
+.osc-toggle-btn.active .osc-name,
+.osc-toggle-btn.active .osc-desc {
+  color: white;
+}
+
+.osc-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.osc-desc {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* FM Mode Toggle */
+
+.fm-toggle-section {
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-light);
+}
+
+.fm-mode-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.fm-mode-btn {
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(255, 255, 255, 0.6);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.fm-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: var(--border-medium);
+}
+
+.fm-mode-btn.active {
+  background: linear-gradient(135deg, #c49ac4, #7eb5d6);
+  border-color: #7eb5d6;
+  box-shadow: 0 2px 8px rgba(126, 181, 214, 0.3);
+}
+
+.fm-mode-btn.active .fm-mode-name,
+.fm-mode-btn.active .fm-mode-desc {
+  color: white;
+}
+
+.fm-mode-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fm-mode-desc {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* ========== JUST FRIENDS OSC PANEL ========== */
+
+#jfOscPanel {
+  background: linear-gradient(135deg, 
+    rgba(255, 220, 240, 0.6) 0%, 
+    rgba(240, 220, 255, 0.6) 100%);
+}
+
+.jfosc-mode-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.mode-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(42, 42, 42, 0.8);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.mode-badge.run-mode {
+  background: linear-gradient(135deg, #c49ac4, #e08080);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* JF Osc Triggers */
+
+.jfosc-triggers {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-light);
+}
+
+.trigger-group {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-sm);
+}
+
+.jfosc-trigger-btn {
+  padding: var(--space-md) var(--space-sm);
+  background: rgba(255, 255, 255, 0.6);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.jfosc-trigger-btn:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: var(--border-medium);
+  transform: translateY(-2px);
+}
+
+.jfosc-trigger-btn:active,
+.jfosc-trigger-btn.active {
+  background: linear-gradient(135deg, #7eb5d6, #8dc49a);
+  border-color: #7eb5d6;
+  color: white;
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(126, 181, 214, 0.4);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   body {
@@ -479,6 +683,22 @@ body {
   .footer {
     flex-direction: column;
     text-align: center;
+  }
+  
+  .osc-toggle-group {
+    grid-template-columns: 1fr;
+  }
+  
+  .fm-mode-group {
+    grid-template-columns: 1fr;
+  }
+  
+  .trigger-group {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .jfosc-mode-controls {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -505,12 +725,4 @@ body {
 ::selection {
   background: var(--pastel-blue);
   color: var(--text-primary);
-}
-
-/* Focus states for accessibility */
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid var(--text-primary);
-  outline-offset: 2px;
 }
