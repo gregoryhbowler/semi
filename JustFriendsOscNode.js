@@ -2,71 +2,77 @@
  * JustFriendsOscNode.js
  * 
  * AudioWorkletNode wrapper for the Just Friends oscillator processor.
- * Provides a clean API for patching and controlling the module.
+ * Full implementation with all modes and RUN modes.
  * 
- * Modeled after MangroveNode for consistency.
+ * Provides a clean API for:
+ *   - All 6 standard modes (3 modes × 2 ranges)
+ *   - All 6 RUN modes (SHIFT, STRATA, VOLLEY, SPILL, PLUME, FLOOM)
+ *   - CV inputs for all parameters
+ *   - Trigger/gate inputs for envelope modes
+ *   - Individual and mixed outputs
  * 
  * Usage:
  *   const ctx = new AudioContext();
  *   await ctx.audioWorklet.addModule('./just-friends-osc-processor.js');
  *   const jf = new JustFriendsOscNode(ctx);
  *   
- *   // Set parameters
- *   jf.params.time.value = 0.5;
- *   jf.params.intone.value = 0.5;
- *   jf.params.ramp.value = 0.5;
- *   jf.params.curve.value = 0.5;
- *   jf.params.range.value = 1; // SOUND
- *   jf.params.mode.value = 2;  // CYCLE
+ *   // Set to cycle/sound mode (oscillators)
+ *   jf.setCycleSoundMode();
+ *   
+ *   // Or envelope mode
+ *   jf.setTransientShapeMode();
+ *   
+ *   // Enable RUN mode for FLOOM
+ *   jf.enableRunMode(true);
+ *   jf.setCycleSoundMode();
+ *   
+ *   // Trigger envelopes
+ *   jf.trigger(5); // Trigger 6N (cascades to all)
  *   
  *   // Connect outputs
- *   const gain = ctx.createGain();
- *   gain.gain.value = 0.2;
- *   jf.getMixOutput().connect(gain);
- *   gain.connect(ctx.destination);
- *   
- *   // Or connect individual outputs
- *   jf.getIdentityOutput().connect(someDestination);
- *   jf.get2NOutput().connect(anotherDestination);
- *   
- *   // Connect CV inputs
- *   someOscillator.connect(jf.getTimeCVInput());
- *   lfo.connect(jf.getFMInput());
+ *   jf.getMixOutput().connect(ctx.destination);
  */
 
 export class JustFriendsOscNode extends AudioWorkletNode {
   
-  /**
-   * Range constants for use with params.range
-   */
+  // ============================================
+  // Constants
+  // ============================================
+  
   static RANGE_SHAPE = 0;
   static RANGE_SOUND = 1;
-  static RANGE_TRANSIENT = 2; // Stub for future
   
-  /**
-   * Mode constants for use with params.mode
-   */
   static MODE_TRANSIENT = 0;
   static MODE_SUSTAIN = 1;
   static MODE_CYCLE = 2;
   
-  /**
-   * Create a new JustFriendsOscNode
-   * @param {AudioContext} context - The audio context
-   */
+  // RUN mode names for reference
+  static RUN_MODES = {
+    'transient/shape': 'SHIFT',
+    'sustain/shape': 'STRATA',
+    'cycle/shape': 'VOLLEY',
+    'transient/sound': 'SPILL',
+    'sustain/sound': 'PLUME',
+    'cycle/sound': 'FLOOM'
+  };
+  
+  // ============================================
+  // Constructor
+  // ============================================
+  
   constructor(context) {
     super(context, 'just-friends-processor', {
       numberOfInputs: 1,
       numberOfOutputs: 1,
-      outputChannelCount: [7], // 6 slopes + MIX
-      channelCount: 3, // TIME CV, FM, INTONE CV
+      outputChannelCount: [7],
+      channelCount: 11, // TIME, FM, INTONE, RUN, RAMP, + 6 triggers
       channelCountMode: 'explicit',
       channelInterpretation: 'discrete'
     });
     
     this._context = context;
     
-    // Map AudioParams to a friendly params object
+    // Map AudioParams
     this.params = {
       time: this.parameters.get('time'),
       intone: this.parameters.get('intone'),
@@ -75,402 +81,461 @@ export class JustFriendsOscNode extends AudioWorkletNode {
       range: this.parameters.get('range'),
       mode: this.parameters.get('mode'),
       run: this.parameters.get('run'),
-      fmIndex: this.parameters.get('fmIndex')
+      fmIndex: this.parameters.get('fmIndex'),
+      runEnabled: this.parameters.get('runEnabled')
     };
     
-    // Create input nodes for CV routing
-    // These allow external sources to modulate the processor inputs
+    // ============================================
+    // Create Input Nodes
+    // ============================================
     
-    // TIME CV input (1V/oct pitch control)
+    // CV inputs
     this._timeCVInput = context.createGain();
     this._timeCVInput.gain.value = 1;
     
-    // FM input (frequency modulation)
     this._fmInput = context.createGain();
     this._fmInput.gain.value = 1;
     
-    // INTONE CV input
     this._intoneCVInput = context.createGain();
     this._intoneCVInput.gain.value = 1;
     
-    // Merge the 3 CV inputs into the processor's single multi-channel input
-    this._inputMerger = context.createChannelMerger(3);
+    this._runCVInput = context.createGain();
+    this._runCVInput.gain.value = 1;
+    
+    this._rampCVInput = context.createGain();
+    this._rampCVInput.gain.value = 1;
+    
+    // Trigger inputs (one per oscillator)
+    this._triggerInputs = [];
+    for (let i = 0; i < 6; i++) {
+      const trigIn = context.createGain();
+      trigIn.gain.value = 1;
+      this._triggerInputs.push(trigIn);
+    }
+    
+    // Merge all inputs into processor's multi-channel input
+    this._inputMerger = context.createChannelMerger(11);
     this._timeCVInput.connect(this._inputMerger, 0, 0);
     this._fmInput.connect(this._inputMerger, 0, 1);
     this._intoneCVInput.connect(this._inputMerger, 0, 2);
+    this._runCVInput.connect(this._inputMerger, 0, 3);
+    this._rampCVInput.connect(this._inputMerger, 0, 4);
+    
+    for (let i = 0; i < 6; i++) {
+      this._triggerInputs[i].connect(this._inputMerger, 0, 5 + i);
+    }
+    
     this._inputMerger.connect(this);
     
-    // Create output splitter to route individual channels
+    // ============================================
+    // Create Output Nodes
+    // ============================================
+    
     this._outputSplitter = context.createChannelSplitter(7);
     this.connect(this._outputSplitter);
     
-    // Create individual output gain nodes for each slope
-    // This allows independent gain control and easy patching
+    // Individual outputs with gain control
+    this._outputs = [];
+    for (let i = 0; i < 7; i++) {
+      const out = context.createGain();
+      out.gain.value = 1;
+      this._outputSplitter.connect(out, i);
+      this._outputs.push(out);
+    }
     
-    this._identityOut = context.createGain();
-    this._identityOut.gain.value = 1;
+    // Named references
+    this._identityOut = this._outputs[0];
+    this._n2Out = this._outputs[1];
+    this._n3Out = this._outputs[2];
+    this._n4Out = this._outputs[3];
+    this._n5Out = this._outputs[4];
+    this._n6Out = this._outputs[5];
+    this._mixOut = this._outputs[6];
     
-    this._n2Out = context.createGain();
-    this._n2Out.gain.value = 1;
+    // ============================================
+    // Internal State
+    // ============================================
     
-    this._n3Out = context.createGain();
-    this._n3Out.gain.value = 1;
-    
-    this._n4Out = context.createGain();
-    this._n4Out.gain.value = 1;
-    
-    this._n5Out = context.createGain();
-    this._n5Out.gain.value = 1;
-    
-    this._n6Out = context.createGain();
-    this._n6Out.gain.value = 1;
-    
-    this._mixOut = context.createGain();
-    this._mixOut.gain.value = 1;
-    
-    // Connect splitter channels to output nodes
-    this._outputSplitter.connect(this._identityOut, 0);
-    this._outputSplitter.connect(this._n2Out, 1);
-    this._outputSplitter.connect(this._n3Out, 2);
-    this._outputSplitter.connect(this._n4Out, 3);
-    this._outputSplitter.connect(this._n5Out, 4);
-    this._outputSplitter.connect(this._n6Out, 5);
-    this._outputSplitter.connect(this._mixOut, 6);
+    this._gateStates = [false, false, false, false, false, false];
+    this._gateSources = [null, null, null, null, null, null];
   }
   
   // ============================================
-  // Input Accessors
+  // CV Input Accessors
   // ============================================
   
-  /**
-   * Get the TIME CV input node
-   * Connect a 1V/oct pitch source here
-   * @returns {GainNode}
-   */
+  /** Get TIME CV input (1V/oct pitch control) */
   getTimeCVInput() {
     return this._timeCVInput;
   }
   
-  /**
-   * Get the FM input node
-   * Connect an audio-rate modulation source here
-   * @returns {GainNode}
-   */
+  /** Get FM input (audio-rate frequency modulation) */
   getFMInput() {
     return this._fmInput;
   }
   
-  /**
-   * Get the INTONE CV input node
-   * Connect a modulation source to control harmonic spread
-   * @returns {GainNode}
-   */
+  /** Get INTONE CV input */
   getIntoneCVInput() {
     return this._intoneCVInput;
+  }
+  
+  /** Get RUN CV input (for RUN mode control) */
+  getRunCVInput() {
+    return this._runCVInput;
+  }
+  
+  /** Get RAMP CV input */
+  getRampCVInput() {
+    return this._rampCVInput;
+  }
+  
+  // ============================================
+  // Trigger Input Accessors
+  // ============================================
+  
+  /** Get IDENTITY trigger input */
+  getIdentityTriggerInput() {
+    return this._triggerInputs[0];
+  }
+  
+  /** Get 2N trigger input */
+  get2NTriggerInput() {
+    return this._triggerInputs[1];
+  }
+  
+  /** Get 3N trigger input */
+  get3NTriggerInput() {
+    return this._triggerInputs[2];
+  }
+  
+  /** Get 4N trigger input */
+  get4NTriggerInput() {
+    return this._triggerInputs[3];
+  }
+  
+  /** Get 5N trigger input */
+  get5NTriggerInput() {
+    return this._triggerInputs[4];
+  }
+  
+  /** Get 6N trigger input */
+  get6NTriggerInput() {
+    return this._triggerInputs[5];
+  }
+  
+  /** 
+   * Get trigger input by index (0=IDENTITY, 5=6N)
+   * @param {number} index 0-5
+   */
+  getTriggerInput(index) {
+    return this._triggerInputs[index] || null;
   }
   
   // ============================================
   // Output Accessors
   // ============================================
   
-  /**
-   * Get the IDENTITY (1N) output
-   * This is the fundamental frequency oscillator
-   * @returns {GainNode}
-   */
-  getIdentityOutput() {
-    return this._identityOut;
-  }
-  
-  /**
-   * Get the 2N output
-   * At INTONE CW: 2x frequency (octave up)
-   * At INTONE CCW: 1/2 frequency (octave down)
-   * @returns {GainNode}
-   */
-  get2NOutput() {
-    return this._n2Out;
-  }
-  
-  /**
-   * Get the 3N output
-   * At INTONE CW: 3x frequency (octave + fifth)
-   * At INTONE CCW: 1/3 frequency
-   * @returns {GainNode}
-   */
-  get3NOutput() {
-    return this._n3Out;
-  }
-  
-  /**
-   * Get the 4N output
-   * At INTONE CW: 4x frequency (2 octaves)
-   * At INTONE CCW: 1/4 frequency
-   * @returns {GainNode}
-   */
-  get4NOutput() {
-    return this._n4Out;
-  }
-  
-  /**
-   * Get the 5N output
-   * At INTONE CW: 5x frequency (2 octaves + major 3rd)
-   * At INTONE CCW: 1/5 frequency
-   * @returns {GainNode}
-   */
-  get5NOutput() {
-    return this._n5Out;
-  }
-  
-  /**
-   * Get the 6N output
-   * At INTONE CW: 6x frequency (2 octaves + fifth)
-   * At INTONE CCW: 1/6 frequency
-   * @returns {GainNode}
-   */
-  get6NOutput() {
-    return this._n6Out;
-  }
-  
-  /**
-   * Get the MIX output
-   * Equal mix of all 6 oscillators with soft limiting
-   * @returns {GainNode}
-   */
-  getMixOutput() {
-    return this._mixOut;
-  }
+  getIdentityOutput() { return this._identityOut; }
+  get2NOutput() { return this._n2Out; }
+  get3NOutput() { return this._n3Out; }
+  get4NOutput() { return this._n4Out; }
+  get5NOutput() { return this._n5Out; }
+  get6NOutput() { return this._n6Out; }
+  getMixOutput() { return this._mixOut; }
   
   /**
    * Get output by index (0-6)
    * 0=IDENTITY, 1=2N, 2=3N, 3=4N, 4=5N, 5=6N, 6=MIX
-   * @param {number} index
-   * @returns {GainNode}
    */
   getOutput(index) {
-    const outputs = [
-      this._identityOut,
-      this._n2Out,
-      this._n3Out,
-      this._n4Out,
-      this._n5Out,
-      this._n6Out,
-      this._mixOut
-    ];
-    return outputs[index] || null;
+    return this._outputs[index] || null;
   }
   
   // ============================================
-  // Convenience Methods
+  // Programmatic Trigger/Gate Control
   // ============================================
   
   /**
-   * Set the module to cycle/sound mode (oscillator mode)
+   * Send a trigger pulse to a specific oscillator
+   * Triggers cascade down due to normalling (6N triggers all when others unpatched)
+   * @param {number} index 0=IDENTITY, 5=6N
    */
+  trigger(index) {
+    if (index >= 0 && index < 6) {
+      this.port.postMessage({ type: 'trigger', index });
+    }
+  }
+  
+  /**
+   * Trigger all oscillators (equivalent to triggering 6N with normalling)
+   */
+  triggerAll() {
+    this.trigger(5);
+  }
+  
+  /**
+   * Set gate state for a specific oscillator (for sustain mode)
+   * @param {number} index 0=IDENTITY, 5=6N
+   * @param {boolean} high true for gate high, false for gate low
+   */
+  setGate(index, high) {
+    if (index >= 0 && index < 6) {
+      this._gateStates[index] = high;
+      this.port.postMessage({ type: 'gate', index, high });
+    }
+  }
+  
+  /**
+   * Create a DC offset source for holding gates high
+   * @param {number} index 0=IDENTITY, 5=6N
+   * @param {boolean} high true to hold gate high
+   */
+  holdGate(index, high) {
+    if (index < 0 || index >= 6) return;
+    
+    // Clean up existing source
+    if (this._gateSources[index]) {
+      this._gateSources[index].disconnect();
+      this._gateSources[index] = null;
+    }
+    
+    if (high) {
+      // Create constant source for gate
+      const constSource = this._context.createConstantSource();
+      constSource.offset.value = 1; // High gate
+      constSource.connect(this._triggerInputs[index]);
+      constSource.start();
+      this._gateSources[index] = constSource;
+    }
+    
+    this._gateStates[index] = high;
+  }
+  
+  /**
+   * Pulse a gate (quick trigger for sustain mode)
+   * @param {number} index 0=IDENTITY, 5=6N
+   * @param {number} duration Duration in seconds (default 0.01 = 10ms)
+   */
+  pulseGate(index, duration = 0.01) {
+    this.holdGate(index, true);
+    setTimeout(() => this.holdGate(index, false), duration * 1000);
+  }
+  
+  // ============================================
+  // Mode Setting Methods
+  // ============================================
+  
+  /**
+   * Enable or disable RUN mode
+   * When enabled, the current mode/range combination activates its RUN variant
+   */
+  enableRunMode(enabled) {
+    this.params.runEnabled.value = enabled ? 1 : 0;
+  }
+  
+  /** Set to transient/shape mode (AR envelopes, or SHIFT with RUN) */
+  setTransientShapeMode() {
+    this.params.range.value = JustFriendsOscNode.RANGE_SHAPE;
+    this.params.mode.value = JustFriendsOscNode.MODE_TRANSIENT;
+  }
+  
+  /** Set to sustain/shape mode (ASR envelopes, or STRATA with RUN) */
+  setSustainShapeMode() {
+    this.params.range.value = JustFriendsOscNode.RANGE_SHAPE;
+    this.params.mode.value = JustFriendsOscNode.MODE_SUSTAIN;
+  }
+  
+  /** Set to cycle/shape mode (LFOs, or VOLLEY with RUN) */
+  setCycleShapeMode() {
+    this.params.range.value = JustFriendsOscNode.RANGE_SHAPE;
+    this.params.mode.value = JustFriendsOscNode.MODE_CYCLE;
+  }
+  
+  /** Set to transient/sound mode (impulse-train VCOs, or SPILL with RUN) */
+  setTransientSoundMode() {
+    this.params.range.value = JustFriendsOscNode.RANGE_SOUND;
+    this.params.mode.value = JustFriendsOscNode.MODE_TRANSIENT;
+  }
+  
+  /** Set to sustain/sound mode (trapezoid VCOs, or PLUME with RUN) */
+  setSustainSoundMode() {
+    this.params.range.value = JustFriendsOscNode.RANGE_SOUND;
+    this.params.mode.value = JustFriendsOscNode.MODE_SUSTAIN;
+  }
+  
+  /** Set to cycle/sound mode (waveshaped VCOs, or FLOOM with RUN) */
   setCycleSoundMode() {
     this.params.range.value = JustFriendsOscNode.RANGE_SOUND;
     this.params.mode.value = JustFriendsOscNode.MODE_CYCLE;
   }
   
   /**
-   * Set the module to cycle/shape mode (LFO mode)
+   * Get the name of the current RUN mode based on range/mode settings
    */
-  setCycleShapeMode() {
-    this.params.range.value = JustFriendsOscNode.RANGE_SHAPE;
-    this.params.mode.value = JustFriendsOscNode.MODE_CYCLE;
+  getCurrentRunModeName() {
+    const range = this.params.range.value > 0.5 ? 'sound' : 'shape';
+    const modes = ['transient', 'sustain', 'cycle'];
+    const mode = modes[Math.round(this.params.mode.value)];
+    return JustFriendsOscNode.RUN_MODES[`${mode}/${range}`];
   }
   
-  /**
-   * Set all oscillators to unison (INTONE at noon)
-   */
-  setUnison() {
-    this.params.intone.value = 0.5;
-  }
+  // ============================================
+  // Convenience Parameter Methods
+  // ============================================
   
-  /**
-   * Set oscillators to harmonic overtone series
-   */
-  setOvertones() {
-    this.params.intone.value = 1.0;
-  }
+  setUnison() { this.params.intone.value = 0.5; }
+  setOvertones() { this.params.intone.value = 1.0; }
+  setUndertones() { this.params.intone.value = 0.0; }
   
-  /**
-   * Set oscillators to undertone/subharmonic series
-   */
-  setUndertones() {
-    this.params.intone.value = 0.0;
-  }
-  
-  /**
-   * Set waveshape to sine (CURVE fully CW, RAMP at noon)
-   */
   setSineWave() {
     this.params.curve.value = 1.0;
     this.params.ramp.value = 0.5;
   }
   
-  /**
-   * Set waveshape to triangle (CURVE at noon, RAMP at noon)
-   */
   setTriangleWave() {
     this.params.curve.value = 0.5;
     this.params.ramp.value = 0.5;
   }
   
-  /**
-   * Set waveshape to saw (CURVE at noon, RAMP fully CCW)
-   */
   setSawWave() {
     this.params.curve.value = 0.5;
     this.params.ramp.value = 0.0;
   }
   
-  /**
-   * Set waveshape to ramp (CURVE at noon, RAMP fully CW)
-   */
   setRampWave() {
     this.params.curve.value = 0.5;
     this.params.ramp.value = 1.0;
   }
   
-  /**
-   * Set waveshape to square/pulse (CURVE fully CCW)
-   * RAMP controls pulse width
-   */
   setSquareWave() {
     this.params.curve.value = 0.0;
     this.params.ramp.value = 0.5;
   }
   
-  /**
-   * Disconnect all nodes and clean up
-   */
+  // ============================================
+  // Cleanup
+  // ============================================
+  
   dispose() {
-    // Disconnect worklet node
+    // Stop any gate sources
+    for (let i = 0; i < 6; i++) {
+      if (this._gateSources[i]) {
+        this._gateSources[i].stop();
+        this._gateSources[i].disconnect();
+      }
+    }
+    
     this.disconnect();
     
-    // Disconnect outputs
-    this._identityOut.disconnect();
-    this._n2Out.disconnect();
-    this._n3Out.disconnect();
-    this._n4Out.disconnect();
-    this._n5Out.disconnect();
-    this._n6Out.disconnect();
-    this._mixOut.disconnect();
+    for (const out of this._outputs) {
+      out.disconnect();
+    }
     
-    // Disconnect splitter
     this._outputSplitter.disconnect();
-    
-    // Disconnect inputs
     this._timeCVInput.disconnect();
     this._fmInput.disconnect();
     this._intoneCVInput.disconnect();
+    this._runCVInput.disconnect();
+    this._rampCVInput.disconnect();
+    
+    for (const trigIn of this._triggerInputs) {
+      trigIn.disconnect();
+    }
+    
     this._inputMerger.disconnect();
   }
 }
 
-// Also export as default for flexibility
 export default JustFriendsOscNode;
 
 /*
  * ============================================
- * MINIMAL TEST HARNESS EXAMPLE
+ * MODE REFERENCE
  * ============================================
  * 
- * This is a simple example of how to use JustFriendsOscNode.
- * Copy this to an HTML file or module to test.
+ * STANDARD MODES:
  * 
- * ```javascript
- * import { JustFriendsOscNode } from './JustFriendsOscNode.js';
+ * transient/shape:
+ *   AR envelope generators. Triggers start attack phase.
+ *   Triggers ignored while envelope is active.
+ *   TIME/INTONE control duration, RAMP controls attack/release balance.
  * 
- * async function init() {
- *   const ctx = new AudioContext();
- *   
- *   // Load the processor
- *   await ctx.audioWorklet.addModule('./just-friends-osc-processor.js');
- *   
- *   // Create the node
- *   const jf = new JustFriendsOscNode(ctx);
- *   
- *   // Configure for oscillator mode
- *   jf.setCycleSoundMode();
- *   
- *   // Set initial parameters
- *   jf.params.time.value = 0.5;     // Middle frequency
- *   jf.params.intone.value = 0.5;   // Unison
- *   jf.params.ramp.value = 0.5;     // Triangle
- *   jf.params.curve.value = 1.0;    // Sine
- *   jf.params.fmIndex.value = 0;    // No FM
- *   
- *   // Create output gain for volume control
- *   const masterGain = ctx.createGain();
- *   masterGain.gain.value = 0.2;
- *   
- *   // Connect MIX output to speakers
- *   jf.getMixOutput().connect(masterGain);
- *   masterGain.connect(ctx.destination);
- *   
- *   // Resume audio context (required for user gesture)
- *   await ctx.resume();
- *   
- *   // Example: Sweep INTONE from unison to overtones
- *   jf.params.intone.setValueAtTime(0.5, ctx.currentTime);
- *   jf.params.intone.linearRampToValueAtTime(1.0, ctx.currentTime + 2);
- *   
- *   // Example: Connect an LFO to TIME CV for vibrato
- *   const lfo = ctx.createOscillator();
- *   lfo.frequency.value = 5; // 5 Hz vibrato
- *   const lfoGain = ctx.createGain();
- *   lfoGain.gain.value = 0.01; // Small amount (about 1 semitone)
- *   lfo.connect(lfoGain);
- *   lfoGain.connect(jf.getTimeCVInput());
- *   lfo.start();
- *   
- *   return { ctx, jf, masterGain };
- * }
+ * sustain/shape:
+ *   ASR envelope generators. Gate-sensitive.
+ *   Gate high = rise to max and hold, gate low = fall to min.
+ *   "Vactrol memory" effect when gates faster than envelope.
  * 
- * // Call init() on user interaction (e.g., button click)
- * document.getElementById('startButton').addEventListener('click', init);
- * ```
+ * cycle/shape:
+ *   LFOs with controllable phase relationships.
+ *   Triggers reset phase (useful for sync, quadrature patterns).
+ *   INTONE spreads frequencies, TIME sets base rate.
+ * 
+ * transient/sound:
+ *   Impulse-train VCOs. Requires external audio-rate trigger.
+ *   TIME/INTONE control formant (impulse duration), not pitch.
+ *   Pitch determined by external trigger rate.
+ * 
+ * sustain/sound:
+ *   Trapezoid VCOs. Tracks PWM of input gate.
+ *   Similar to transient/sound but gate-sensitive.
+ * 
+ * cycle/sound:
+ *   Waveshaped VCOs. Free-running oscillators.
+ *   TIME/INTONE control pitch relationships.
+ *   RAMP/CURVE control timbre.
  * 
  * ============================================
- * NOTES FOR FUTURE IMPLEMENTATION
+ * RUN MODES (enableRunMode(true)):
  * ============================================
  * 
- * Modes to implement:
+ * SHIFT (transient/shape):
+ *   AR envelopes with retrigger control.
+ *   RUN CV sets point where envelope becomes retriggerable.
+ *   -5V: always retriggerable
+ *   0V: retriggerable after rise complete
+ *   +5V: retriggerable only at end (standard behavior)
  * 
- * 1. transient/shape: Triggered AR envelopes
- *    - Requires trigger inputs (could use message port)
- *    - Trigger skipping behavior
- *    - Clock division
+ * STRATA (sustain/shape):
+ *   ARSR envelopes. RUN CV controls sustain level.
+ *   After reaching max, falls to sustain level and holds.
+ *   Can be used as 6-channel slew limiter.
  * 
- * 2. sustain/shape: Gated ASR envelopes
- *    - Gate-sensitive inputs
- *    - Vactrol memory effect
- *    - Gate-to-CV-sequence converter
+ * VOLLEY (cycle/shape):
+ *   Modulation burst generator.
+ *   Triggers start fixed number of LFO cycles.
+ *   RUN CV controls burst count (-4V=choked, 0V=6, +5V=36).
  * 
- * 3. transient/sound: Impulse-train VCOs
- *    - Requires external clock/oscillator to drive
- *    - Subharmonics generation
+ * SPILL (transient/sound):
+ *   Self-clocked impulse trains with sync chaos.
+ *   IDENTITY is free-running, others triggered by IDENTITY EOC.
+ *   RUN CV controls retrigger behavior (subharmonics, split-tones).
+ *   INTONE CCW = undertones/subharmonics possible.
  * 
- * 4. sustain/sound: Trapezoid VCOs
- *    - PWM tracking from input gate width
+ * PLUME (sustain/sound):
+ *   LPG-processed VCOs for polyphonic synthesis.
+ *   Triggers/gates pluck or hold internal lowpass gates.
+ *   RUN CV controls vactrol response (attack/decay time).
+ *   INTONE CW = major chord, CCW = minor chord.
  * 
- * RUN Modes (activated by RUN input):
+ * FLOOM (cycle/sound):
+ *   2-operator FM synthesis.
+ *   Internal modulator for each carrier, no external FM needed.
+ *   RUN CV controls modulator:carrier ratio (-5V=0.5x, 0=1x, +5V=2x).
+ *   FM knob controls depth. Can generate noise at extreme settings.
  * 
- * 1. SHIFT (transient/shape): Retrigger control
- * 2. STRATA (sustain/shape): ARSR envelopes, slew limiting
- * 3. VOLLEY (cycle/shape): Modulation bursts
- * 4. SPILL (transient/sound): Impulse-trains with sync chaos
- * 5. PLUME (sustain/sound): LPG-processed VCOs, polyphonic synthesis
- * 6. FLOOM (cycle/sound): 2-operator FM synthesis, noise generation
+ * ============================================
+ * TRIGGER NORMALLING
+ * ============================================
  * 
- * Additional features to consider:
+ * Trigger inputs are normalled from 6N down to IDENTITY.
+ * A trigger to 6N (with nothing else patched) triggers all 6.
+ * Patching breaks the normal at that point.
  * 
- * - Trigger inputs via MessagePort for envelope modes
- * - RAMP CV input
- * - CURVE CV input
- * - Trigger input normalling (cascade from 6N down to IDENTITY)
- * - Phase sync/reset via triggers
- * - Different MIX behavior for SHAPE range (scaled max)
+ * Example: Trigger to 6N, dummy cable to 3N
+ *   - 6N trigger -> 6N, 5N, 4N
+ *   - Nothing reaches 3N, 2N, IDENTITY
+ * 
+ * Example: Trigger to 6N, different trigger to 2N
+ *   - 6N trigger -> 6N, 5N, 4N, 3N
+ *   - 2N trigger -> 2N, IDENTITY
  */
