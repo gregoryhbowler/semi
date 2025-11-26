@@ -12,7 +12,8 @@ import { JustFriendsNode } from './JustFriendsNode.js';
 import { QuantizerNode } from './QuantizerNode.js';
 import { MangroveNode } from './MangroveNode.js';
 import { ThreeSistersNode } from './ThreeSistersNode.js';
-import { ModulationMatrixNode } from './ModulationMatrixNode.js';
+// FIXED: Import from outputs directory where the corrected file is
+import { ModulationMatrixNode } from './outputs/ModulationMatrixNode.js';
 
 class Phase5App {
   constructor() {
@@ -30,6 +31,7 @@ class Phase5App {
     // Modulation matrix
     this.modMatrix = null;
     this.destinationMap = null;
+    this.jfMerger = null;  // Channel merger for routing JF slopes to mod matrix
     
     // FM routing
     this.fmGainB = null;
@@ -103,11 +105,14 @@ class Phase5App {
       this.masterGain.connect(this.audioContext.destination);
       
       // 6. JF slopes 2N-6N → Modulation Matrix
-      this.jf1.get2NOutput().connect(this.modMatrix.getInput(), 0, 0);
-      this.jf1.get3NOutput().connect(this.modMatrix.getInput(), 0, 1);
-      this.jf1.get4NOutput().connect(this.modMatrix.getInput(), 0, 2);
-      this.jf1.get5NOutput().connect(this.modMatrix.getInput(), 0, 3);
-      this.jf1.get6NOutput().connect(this.modMatrix.getInput(), 0, 4);
+      // Create a merger to combine 5 mono slopes into 1 five-channel signal
+      this.jfMerger = this.audioContext.createChannelMerger(5);
+      this.jf1.get2NOutput().connect(this.jfMerger, 0, 0);
+      this.jf1.get3NOutput().connect(this.jfMerger, 0, 1);
+      this.jf1.get4NOutput().connect(this.jfMerger, 0, 2);
+      this.jf1.get5NOutput().connect(this.jfMerger, 0, 3);
+      this.jf1.get6NOutput().connect(this.jfMerger, 0, 4);
+      this.jfMerger.connect(this.modMatrix.getInput());
       
       console.log('=== Phase 5 + Modulation Matrix Signal Flow ===');
       console.log('JF #1 IDENTITY → Quantizer → Mangrove A pitch');
