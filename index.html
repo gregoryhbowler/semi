@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Phase 3: CV Quantizer Integration</title>
+  <title>Phase 4: Multi-Mangrove FM Architecture</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="header">
     <div class="logo">
       <div class="logo-main">SEMI-MODULAR</div>
-      <div class="logo-sub">phase 3: cv quantizer</div>
+      <div class="logo-sub">phase 4: multi-mangrove fm</div>
     </div>
     <div class="status-display">
       <span id="status">Initializing...</span>
@@ -83,17 +83,11 @@
         <input type="range" id="quantDepth" min="0" max="8" step="0.01" value="1.0">
         <span class="param-value" id="quantDepthValue">1.00</span>
       </div>
-      <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: -8px; margin-bottom: 12px;">
-        octave range: 0 = single note, 8 = eight octaves
-      </div>
 
       <div class="param-row">
         <label for="quantOffset">offset</label>
         <input type="range" id="quantOffset" min="-4" max="4" step="0.01" value="0">
         <span class="param-value" id="quantOffsetValue">0.00</span>
-      </div>
-      <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: -8px; margin-bottom: 12px;">
-        transpose after quantization
       </div>
 
       <div class="scale-presets">
@@ -129,53 +123,129 @@
 
     <!-- MANGROVE A - VOICE OSCILLATOR -->
     <div class="panel-section">
-      <div class="section-title">mangrove a → voice oscillator</div>
+      <div class="section-title">mangrove A → voice oscillator (FM target)</div>
       
       <div class="param-row">
-        <label for="pitchKnob">pitch</label>
-        <input type="range" id="pitchKnob" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="pitchKnobValue">0.50</span>
+        <label for="maPitch">pitch</label>
+        <input type="range" id="maPitch" min="0" max="1" step="0.001" value="0.5">
+        <span class="param-value" id="maPitchValue">0.50</span>
       </div>
 
       <div class="param-row">
-        <label for="barrelKnob">barrel</label>
-        <input type="range" id="barrelKnob" min="0" max="1" step="0.001" value="0.3">
-        <span class="param-value" id="barrelKnobValue">0.30</span>
+        <label for="maBarrel">barrel</label>
+        <input type="range" id="maBarrel" min="0" max="1" step="0.001" value="0.3">
+        <span class="param-value" id="maBarrelValue">0.30</span>
       </div>
 
       <div class="param-row">
-        <label for="formantKnob">formant</label>
-        <input type="range" id="formantKnob" min="0" max="1" step="0.001" value="0.6">
-        <span class="param-value" id="formantKnobValue">0.60</span>
+        <label for="maFormant">formant</label>
+        <input type="range" id="maFormant" min="0" max="1" step="0.001" value="0.6">
+        <span class="param-value" id="maFormantValue">0.60</span>
       </div>
 
       <div class="param-row">
-        <label for="airKnob">air</label>
-        <input type="range" id="airKnob" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="airKnobValue">0.50</span>
+        <label for="maAir">air</label>
+        <input type="range" id="maAir" min="0" max="1" step="0.001" value="0.5">
+        <span class="param-value" id="maAirValue">0.50</span>
       </div>
 
+      <div class="param-row">
+        <label for="maFmIndex">fm depth</label>
+        <input type="range" id="maFmIndex" min="0" max="1" step="0.01" value="0">
+        <span class="param-value" id="maFmIndexValue">0.00</span>
+      </div>
+      <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: -8px; margin-bottom: 12px;">
+        audio-rate FM from Mangrove B
+      </div>
+    </div>
+
+    <!-- MANGROVE B - FM MODULATOR FOR A -->
+    <div class="panel-section">
+      <div class="section-title">mangrove B → FM source for A</div>
+      
+      <div class="param-row">
+        <label for="mbPitch">pitch</label>
+        <input type="range" id="mbPitch" min="0" max="1" step="0.001" value="0.52">
+        <span class="param-value" id="mbPitchValue">0.52</span>
+      </div>
+
+      <div class="param-row">
+        <label for="mbBarrel">barrel</label>
+        <input type="range" id="mbBarrel" min="0" max="1" step="0.001" value="0.5">
+        <span class="param-value" id="mbBarrelValue">0.50</span>
+      </div>
+
+      <div class="param-row">
+        <label for="mbFormant">formant</label>
+        <input type="range" id="mbFormant" min="0" max="1" step="0.001" value="0.5">
+        <span class="param-value" id="mbFormantValue">0.50</span>
+      </div>
+
+      <div class="fm-toggle-row">
+        <label class="toggle-label">
+          <input type="checkbox" id="fmEnable" checked>
+          <span class="toggle-text">Enable FM B → A</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- MANGROVE C - FM SOURCE FOR FILTER (PHASE 5) -->
+    <div class="panel-section">
+      <div class="section-title">mangrove C → FM source for filter (phase 5)</div>
+      
+      <div class="param-row">
+        <label for="mcPitch">pitch</label>
+        <input type="range" id="mcPitch" min="0" max="1" step="0.001" value="0.6">
+        <span class="param-value" id="mcPitchValue">0.60</span>
+      </div>
+
+      <div class="param-row">
+        <label for="mcBarrel">barrel</label>
+        <input type="range" id="mcBarrel" min="0" max="1" step="0.001" value="0.5">
+        <span class="param-value" id="mcBarrelValue">0.50</span>
+      </div>
+
+      <div class="param-row">
+        <label for="mcFormant">formant</label>
+        <input type="range" id="mcFormant" min="0" max="1" step="0.001" value="0.5">
+        <span class="param-value" id="mcFormantValue">0.50</span>
+      </div>
+
+      <div style="font-size: 0.65rem; color: var(--text-dim);">
+        Ready for Three Sisters filter integration in Phase 5
+      </div>
+    </div>
+
+    <!-- SCOPE 2 - FM-MODULATED OUTPUT -->
+    <div class="panel-section scope-panel">
+      <div class="section-title">scope 2: mangrove A output (with FM)</div>
+      <canvas id="scope2" width="600" height="200"></canvas>
+      <div class="scope-info">
+        <span>Showing Mangrove A FORMANT output with audio-rate FM from B</span>
+      </div>
+    </div>
+
+    <!-- MASTER CONTROLS -->
+    <div class="panel-section">
+      <div class="section-title">master output</div>
+      
       <div class="param-row">
         <label for="masterVolume">volume</label>
         <input type="range" id="masterVolume" min="0" max="1" step="0.01" value="0.3">
         <span class="param-value" id="masterVolumeValue">0.30</span>
       </div>
-    </div>
 
-    <!-- CONTROL PANEL -->
-    <div class="panel-section">
-      <div class="section-title">system control</div>
-      
       <button id="startBtn" class="action-btn" disabled>
         <span class="btn-icon">▶</span>
         Start Audio
       </button>
 
       <div class="hint-text" style="margin-top: 1rem;">
-        <p><strong>Signal Flow:</strong> JF #1 → Scope 1 → Quantizer → Mangrove A</p>
-        <p><strong>DEPTH:</strong> Controls octave range. 0 = single note, 1.0 = full octave (12 semitones)</p>
-        <p><strong>OFFSET:</strong> Transposes the quantized pattern up or down</p>
-        <p><strong>Tips:</strong> Start with depth ~0.4 for melodic movement. Use piano keys to select scale notes.</p>
+        <p><strong>Signal Flow:</strong></p>
+        <p>• JF #1 → Quantizer → Mangrove A pitch CV</p>
+        <p>• Mangrove B FORMANT → Mangrove A FM input</p>
+        <p>• Mangrove A FORMANT → output</p>
+        <p><strong>FM Tips:</strong> Start with low FM depth (~0.2), adjust Mangrove B pitch to hear different timbres</p>
       </div>
     </div>
 
@@ -183,10 +253,10 @@
 
   <div class="footer">
     <div class="footer-hint">
-      Phase 3: CV Quantizer with audio-rate quantization
+      Phase 4: Multi-Mangrove FM Architecture
     </div>
     <div class="footer-hint">
-      JF #1 → Quantizer → Mangrove A | Scope 1 shows pre-quantizer CV
+      Three Mangroves + Audio-rate FM: B → A
     </div>
   </div>
 
