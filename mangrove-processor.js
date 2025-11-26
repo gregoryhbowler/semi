@@ -129,7 +129,11 @@ class MangroveProcessor extends AudioWorkletProcessor {
       // Calculate frequency from pitch controls
       const pitchKnob = parameters.pitchKnob[i] || parameters.pitchKnob[0];
       const fineKnob = parameters.fineKnob[i] || parameters.fineKnob[0];
-      const pitchVolt = pitchCV[i] || 0;
+      
+      // CRITICAL FIX: Convert pitch CV from Web Audio range back to voltage
+      // Quantizer outputs voltages divided by 5 for Web Audio normalization
+      // We need to multiply by 5 to get back to actual voltage values
+      const pitchVolt = (pitchCV[i] || 0) * 5.0;
       
       const baseFreq = this.pitchKnobToFreq(pitchKnob);
       const fineVolt = this.fineKnobToVolt(fineKnob);
