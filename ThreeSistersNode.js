@@ -4,7 +4,7 @@
 export class ThreeSistersNode extends AudioWorkletNode {
   constructor(context) {
     super(context, 'three-sisters-processor', {
-      numberOfInputs: 2,  // ALL(IN), FM(IN)
+      numberOfInputs: 1,  // Single bus, 2 channels merged below
       numberOfOutputs: 1, // 4 channels: LOW, CENTRE, HIGH, ALL
       outputChannelCount: [4],
       channelCount: 1,
@@ -43,12 +43,12 @@ export class ThreeSistersNode extends AudioWorkletNode {
     this.audioInput = context.createGain();
     this.fmInput = context.createGain();
 
-    // FIXED: Connect to separate input busses (not channels)
-    // With numberOfInputs: 2, we have 2 input busses
-    // Syntax: source.connect(destination, outputIndex, inputIndex)
-    // Where inputIndex is the INPUT BUS index (0 or 1)
-    this.audioInput.connect(this, 0, 0);  // Connect to input bus 0
-    this.fmInput.connect(this, 0, 1);     // Connect to input bus 1
+    // Merge audio + FM into a single 2-channel bus to avoid input index errors
+    this.inputMerger = context.createChannelMerger(2);
+    this.audioInput.connect(this.inputMerger, 0, 0);
+    this.fmInput.connect(this.inputMerger, 0, 1);
+    this.inputMerger.channelInterpretation = 'discrete';
+    this.inputMerger.connect(this);
   }
 
   // ========== PARAMETER SETTERS ==========
@@ -112,11 +112,12 @@ export class ThreeSistersNode extends AudioWorkletNode {
 
   // ========== CLEANUP ==========
 
-  dispose() {
-    this.disconnect();
-    Object.values(this.outputs).forEach(output => output.disconnect());
-    this.audioInput.disconnect();
-    this.fmInput.disconnect();
-    this.splitter.disconnect();
-  }
+    dispose() {
+      this.disconnect();
+      Object.values(this.outputs).forEach(output => output.disconnect());
+      this.audioInput.disconnect();
+      this.fmInput.disconnect();
+      this.inputMerger.disconnect();
+      this.splitter.disconnect();
+    }
 }

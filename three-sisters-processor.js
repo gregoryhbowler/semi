@@ -181,12 +181,9 @@ class ThreeSistersProcessor extends AudioWorkletProcessor {
     }
     this.debugCounter++;
     
-    // FIXED: Read from separate input busses, not channels of one input
-    // With numberOfInputs: 2, we have:
-    //   inputs[0] = audio input bus
-    //   inputs[1] = FM input bus
+    // Read audio + FM from a single 2-channel bus (merged in the node)
     const audioIn = inputs[0]?.[0] || new Float32Array(128);
-    const fmIn = inputs[1]?.[0] || new Float32Array(128);
+    const fmIn = inputs[0]?.[1] || new Float32Array(128);
     
     const lowOut = output[0];
     const centreOut = output[1];
