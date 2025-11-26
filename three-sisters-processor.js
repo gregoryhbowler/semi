@@ -26,7 +26,7 @@ class ThreeSistersProcessor extends AudioWorkletProcessor {
     this.highSVF1 = this.createSVF();
     this.highSVF2 = this.createSVF();
     
-    console.log('Three Sisters processor initialized - EDGE MODE (chaos allowed)');
+    console.log('Three Sisters processor initialized - EDGE MODE (chaos allowed) - FM INPUT FIXED');
   }
 
   createSVF() {
@@ -168,11 +168,14 @@ class ThreeSistersProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs, outputs, parameters) {
-    const input = inputs[0];
     const output = outputs[0];
     
-    const audioIn = input[0] || new Float32Array(128);
-    const fmIn = input[1] || new Float32Array(128);
+    // FIXED: Read from separate input busses, not channels of one input
+    // With numberOfInputs: 2, we have:
+    //   inputs[0] = audio input bus
+    //   inputs[1] = FM input bus
+    const audioIn = inputs[0]?.[0] || new Float32Array(128);
+    const fmIn = inputs[1]?.[0] || new Float32Array(128);
     
     const lowOut = output[0];
     const centreOut = output[1];
