@@ -142,9 +142,15 @@ class MangroveProcessor extends AudioWorkletProcessor {
       this.frequency = baseFreq * Math.pow(2, totalVolt);
       
       // Apply linear FM
+      // FM Index scaling: fmIndex parameter scales the modulation depth
+      // Scale by carrier frequency for musically useful modulation index
       const fmIndex = parameters.fmIndex[i] || parameters.fmIndex[0];
       const fmSignal = fmInput[i] || 0;
-      const fmAmount = fmSignal * fmIndex * 100.0; // Scale FM depth
+      
+      // fmSignal is normalized ±1 (from ±5V square wave)
+      // Scale by carrier frequency to create proper FM index
+      // fmIndex of 1.0 = frequency deviation of up to 2x carrier frequency
+      const fmAmount = fmSignal * fmIndex * this.frequency * 2.0;
       const modulatedFreq = Math.max(0.1, this.frequency + fmAmount);
       
       // Advance triangle oscillator phase
