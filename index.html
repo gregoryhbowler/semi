@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Phase 4: Multi-Mangrove FM Architecture</title>
+  <title>Phase 4: Multi-Mangrove FM Architecture - ENHANCED</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="header">
     <div class="logo">
       <div class="logo-main">SEMI-MODULAR</div>
-      <div class="logo-sub">phase 4: multi-mangrove fm</div>
+      <div class="logo-sub">phase 4: multi-mangrove fm — enhanced</div>
     </div>
     <div class="status-display">
       <span id="status">Initializing...</span>
@@ -151,11 +151,14 @@
 
       <div class="param-row">
         <label for="maFmIndex">fm depth</label>
-        <input type="range" id="maFmIndex" min="0" max="1" step="0.01" value="0.15">
-        <span class="param-value" id="maFmIndexValue">0.15</span>
+        <input type="range" id="maFmIndex" min="0" max="1" step="0.001" value="0.25">
+        <span class="param-value" id="maFmIndexValue">0.25</span>
       </div>
       <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: -8px; margin-bottom: 12px;">
-        audio-rate FM from Mangrove B SQUARE (enable below)
+        <strong>ENHANCED FM:</strong> 0-1 = Index 0-20<br>
+        0.0-0.25 = harmonic tones (Index 0-5)<br>
+        0.25-0.5 = complex tones (Index 5-10)<br>
+        0.5-1.0 = inharmonic/metallic (Index 10-20)
       </div>
     </div>
 
@@ -183,9 +186,16 @@
 
       <div class="fm-toggle-row">
         <label class="toggle-label">
-          <input type="checkbox" id="fmEnable">
+          <input type="checkbox" id="fmEnable" checked>
           <span class="toggle-text">Enable FM B → A</span>
         </label>
+      </div>
+
+      <div class="hint-text" style="margin-top: 1rem;">
+        <p><strong>FM Ratio Tips:</strong></p>
+        <p>• Integer ratios (1:1, 2:1, 3:2, 4:3) = harmonic tones</p>
+        <p>• Non-integer ratios = inharmonic/metallic timbres</p>
+        <p>• Change BARREL/FORMANT on B for spectral animation</p>
       </div>
     </div>
 
@@ -218,10 +228,10 @@
 
     <!-- SCOPE 2 - FM-MODULATED OUTPUT -->
     <div class="panel-section scope-panel">
-      <div class="section-title">scope 2: mangrove A output (with FM)</div>
+      <div class="section-title">scope 2: mangrove A output (with enhanced FM)</div>
       <canvas id="scope2" width="600" height="200"></canvas>
       <div class="scope-info">
-        <span>Showing Mangrove A FORMANT output with audio-rate FM from B</span>
+        <span>Complex spectra with rich sidebands from audio-rate FM</span>
       </div>
     </div>
 
@@ -241,11 +251,16 @@
       </button>
 
       <div class="hint-text" style="margin-top: 1rem;">
-        <p><strong>Signal Flow:</strong></p>
-        <p>• JF #1 → Quantizer → Mangrove A pitch CV</p>
-        <p>• Mangrove B SQUARE → Mangrove A FM input (audio-rate)</p>
-        <p>• Mangrove A FORMANT → output</p>
-        <p><strong>FM Tips:</strong> Start with low FM depth (~0.1-0.2). Adjust Mangrove B pitch to change harmonic ratios. Integer ratios (1:1, 2:1, 3:2) create harmonic tones. Non-integer ratios create inharmonic/metallic timbres.</p>
+        <p><strong>Enhanced FM System:</strong></p>
+        <p>• Start with FM depth 0.1-0.3 for musical tones</p>
+        <p>• Use 0.3-0.6 for complex, evolving spectra</p>
+        <p>• Push to 0.6-1.0 for extreme inharmonic timbres</p>
+        <p>• Adjust Mangrove B pitch for FM ratios:</p>
+        <p>&nbsp;&nbsp;- Same as A (1:1) = doubled harmonics</p>
+        <p>&nbsp;&nbsp;- Octave up (2:1) = rich overtones</p>
+        <p>&nbsp;&nbsp;- Fifth up (3:2) = bell-like tones</p>
+        <p>&nbsp;&nbsp;- Detuned = beating/chorus effects</p>
+        <p>• Modulate B's BARREL/FORMANT for animated spectra</p>
       </div>
     </div>
 
@@ -253,10 +268,10 @@
 
   <div class="footer">
     <div class="footer-hint">
-      Phase 4: Multi-Mangrove FM Architecture
+      Phase 4 ENHANCED: Multi-Mangrove FM with 20× depth increase
     </div>
     <div class="footer-hint">
-      Three Mangroves + Audio-rate FM: B SQUARE → A FM
+      Rich timbres: harmonic → complex → inharmonic
     </div>
   </div>
 
