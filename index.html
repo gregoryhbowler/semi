@@ -3,89 +3,127 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>many options</title>
+  <title>Phase 5 - Transpose Sequencer</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="mod-matrix-styles.css">
-  <link rel="stylesheet" href="transpose-sequencer-styles.css">
 </head>
 <body>
   <div class="header">
     <div class="logo">
-      <div class="logo-main">semi</div>
-      <div class="logo-sub">many options</div>
+      <div class="logo-main">PHASE 5</div>
+      <div class="logo-sub">modular synthesis system</div>
     </div>
-    <div class="status-display">
-      <span id="status">Initializing...</span>
-    </div>
+    <div class="status-display" id="status">Initializing...</div>
   </div>
 
   <div class="main-container">
     
-    <!-- OSCILLATOR SELECTION -->
-    <div class="panel-section oscillator-select-panel">
-      <div class="section-title">oscillator selection</div>
-      
-      <div class="osc-toggle-group">
-        <button class="osc-toggle-btn active" data-osc="mangrove">
-          <span class="osc-name">Mangrove</span>
-          <span class="osc-desc">Formant VCO</span>
-        </button>
-        <button class="osc-toggle-btn" data-osc="justfriends">
-          <span class="osc-name">Just Friends</span>
-          <span class="osc-desc">6-Voice Multi-Mode</span>
-        </button>
+    <!-- TRANSPOSE SEQUENCER PANEL -->
+    <div class="panel-section transpose-sequencer-panel">
+      <div class="sequencer-header">
+        <h2 class="section-title">transpose sequencer</h2>
+        <div class="playback-controls">
+          <button class="playback-mode-btn active" data-mode="forward">→</button>
+          <button class="playback-mode-btn" data-mode="backward">←</button>
+          <button class="playback-mode-btn" data-mode="pingpong">⇄</button>
+          <button class="playback-mode-btn" data-mode="random">✳</button>
+        </div>
       </div>
-
-      <div class="fm-toggle-section">
-        <div class="section-title" style="margin-top: 1rem;">FM mode (mangrove b)</div>
-        <div class="fm-mode-group">
-          <button class="fm-mode-btn active" data-mode="exponential">
-            <span class="fm-mode-name">Exponential</span>
-            <span class="fm-mode-desc">Pitch Modulation</span>
-          </button>
-          <button class="fm-mode-btn" data-mode="linear">
-            <span class="fm-mode-name">Linear</span>
-            <span class="fm-mode-desc">Through-Zero FM</span>
-          </button>
-        </div>
-        
-        <div class="fm-toggle-row">
-          <label class="toggle-label">
-            <input type="checkbox" id="fmEnable">
-            <span class="toggle-text">Enable FM B → Active Oscillator</span>
-          </label>
-        </div>
+      
+      <div id="sequencerGrid"></div>
+      
+      <div class="sequencer-actions">
+        <button class="seq-action-btn" id="seqResetBtn">reset to step 1</button>
+        <button class="seq-action-btn" id="seqClearBtn">clear all steps</button>
+        <button class="seq-action-btn" id="seqRandomizeBtn">randomize</button>
       </div>
     </div>
-    
-    <!-- JUST FRIENDS #1 - PITCH MODULATION SOURCE -->
+
+    <!-- QUANTIZER PANEL -->
     <div class="panel-section">
-      <div class="section-title">just friends #1 → pitch cv source</div>
+      <h2 class="section-title">quantizer</h2>
+      
+      <div class="scale-controls">
+        <div class="root-selector">
+          <label>root</label>
+          <select id="rootNote">
+            <option value="0">C</option>
+            <option value="1">C#</option>
+            <option value="2">D</option>
+            <option value="3">D#</option>
+            <option value="4">E</option>
+            <option value="5">F</option>
+            <option value="6">F#</option>
+            <option value="7">G</option>
+            <option value="8">G#</option>
+            <option value="9">A</option>
+            <option value="10">A#</option>
+            <option value="11">B</option>
+          </select>
+        </div>
+        
+        <div class="scale-presets">
+          <button class="scale-btn" data-scale="chromatic">chromatic</button>
+          <button class="scale-btn active" data-scale="major">major</button>
+          <button class="scale-btn" data-scale="minor">minor</button>
+          <button class="scale-btn" data-scale="dorian">dorian</button>
+          <button class="scale-btn" data-scale="phrygian">phrygian</button>
+          <button class="scale-btn" data-scale="lydian">lydian</button>
+          <button class="scale-btn" data-scale="mixolydian">mixolydian</button>
+          <button class="scale-btn" data-scale="harmonic-minor">harm. min</button>
+          <button class="scale-btn" data-scale="penta-maj">penta maj</button>
+          <button class="scale-btn" data-scale="penta-min">penta min</button>
+          <button class="scale-btn" data-scale="blues">blues</button>
+          <button class="scale-btn" data-scale="whole-tone">whole tone</button>
+        </div>
+      </div>
       
       <div class="param-row">
-        <label for="jf1Time">time</label>
-        <input type="range" id="jf1Time" min="0" max="1" step="0.001" value="0.25">
+        <label>depth</label>
+        <input type="range" id="quantDepth" min="0" max="8" step="0.01" value="1">
+        <span class="param-value" id="quantDepthValue">1.00</span>
+      </div>
+      
+      <div class="param-row">
+        <label>offset</label>
+        <input type="range" id="quantOffset" min="-4" max="4" step="0.01" value="0">
+        <span class="param-value" id="quantOffsetValue">0.00</span>
+      </div>
+    </div>
+
+    <!-- PIANO KEYBOARD -->
+    <div class="panel-section keyboard-panel">
+      <h2 class="section-title">keyboard (click to toggle notes)</h2>
+      <div class="piano-keyboard" id="pianoKeyboard"></div>
+    </div>
+
+    <!-- JF #1 PANEL -->
+    <div class="panel-section">
+      <h2 class="section-title">just friends #1 (clock source)</h2>
+      
+      <div class="param-row">
+        <label>time</label>
+        <input type="range" id="jf1Time" min="0" max="1" step="0.01" value="0.25">
         <span class="param-value" id="jf1TimeValue">0.25</span>
       </div>
-
+      
       <div class="param-row">
-        <label for="jf1Intone">intone</label>
-        <input type="range" id="jf1Intone" min="0" max="1" step="0.001" value="0.5">
+        <label>intone</label>
+        <input type="range" id="jf1Intone" min="0" max="1" step="0.01" value="0.5">
         <span class="param-value" id="jf1IntoneValue">0.50</span>
       </div>
-
+      
       <div class="param-row">
-        <label for="jf1Ramp">ramp</label>
-        <input type="range" id="jf1Ramp" min="0" max="1" step="0.001" value="0.5">
+        <label>ramp</label>
+        <input type="range" id="jf1Ramp" min="0" max="1" step="0.01" value="0.5">
         <span class="param-value" id="jf1RampValue">0.50</span>
       </div>
-
+      
       <div class="param-row">
-        <label for="jf1Curve">curve</label>
-        <input type="range" id="jf1Curve" min="0" max="1" step="0.001" value="0.5">
+        <label>curve</label>
+        <input type="range" id="jf1Curve" min="0" max="1" step="0.01" value="0.5">
         <span class="param-value" id="jf1CurveValue">0.50</span>
       </div>
-
+      
       <div class="param-row">
         <label>mode</label>
         <select id="jf1Mode">
@@ -94,452 +132,54 @@
           <option value="2" selected>cycle</option>
         </select>
       </div>
-
+      
       <div class="param-row">
         <label>range</label>
         <select id="jf1Range">
-          <option value="0" selected>shape (CV)</option>
-          <option value="1">sound (audio)</option>
+          <option value="0" selected>shape</option>
+          <option value="1">sound</option>
         </select>
       </div>
     </div>
 
-    <!-- SCOPE 1 - PRE-QUANTIZER CV -->
+    <!-- SCOPE 1 -->
     <div class="panel-section scope-panel">
-      <div class="section-title">scope 1: pre-quantizer cv</div>
-      <canvas id="scope1" width="600" height="200"></canvas>
-      <div class="scope-info">
-        <span>Showing continuous CV from JF #1 IDENTITY output</span>
-      </div>
+      <h2 class="section-title">scope 1 (jf #1 identity)</h2>
+      <canvas id="scope1" width="800" height="200"></canvas>
+      <p class="scope-info">Clock source for transpose sequencer</p>
     </div>
 
-    <!-- QUANTIZER -->
-    <div class="panel-section">
-      <div class="section-title">cv quantizer</div>
-      
-      <div class="param-row">
-        <label for="quantDepth">depth</label>
-        <input type="range" id="quantDepth" min="0" max="8" step="0.01" value="1.0">
-        <span class="param-value" id="quantDepthValue">1.00</span>
-      </div>
+    <!-- ... other panels (oscillators, filters, etc.) ... -->
 
-      <div class="param-row">
-        <label for="quantOffset">offset</label>
-        <input type="range" id="quantOffset" min="-4" max="4" step="0.01" value="0">
-        <span class="param-value" id="quantOffsetValue">0.00</span>
-      </div>
-
-      <div class="scale-presets">
-        <button class="preset-btn" data-scale="chromatic">Chromatic</button>
-        <button class="preset-btn active" data-scale="major">C Major</button>
-        <button class="preset-btn" data-scale="minor">A Minor</button>
-        <button class="preset-btn" data-scale="penta-maj">C Penta Maj</button>
-        <button class="preset-btn" data-scale="penta-min">A Penta Min</button>
-      </div>
-    </div>
-
-    <!-- transpose-sequencer-section.html -->
-<!-- ADD THIS SECTION TO index.html AFTER THE QUANTIZER SECTION -->
-
-<!-- TRANSPOSE SEQUENCER -->
-<div class="panel-section transpose-sequencer-panel">
-  <div class="section-title">transpose sequencer → jf #1 clocked melodic sequencing</div>
-  
-  <!-- Playback Controls -->
-  <div class="sequencer-controls">
-    <div class="sequencer-control-group">
-      <label>playback mode</label>
-      <div class="playback-mode-buttons">
-        <button class="playback-mode-btn active" data-mode="forward">
-          Forward
-        </button>
-        <button class="playback-mode-btn" data-mode="backward">
-          Backward
-        </button>
-        <button class="playback-mode-btn" data-mode="pingpong">
-          Ping-Pong
-        </button>
-        <button class="playback-mode-btn" data-mode="random">
-          Random
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Enhanced Scale Selector with Root Note -->
-  <div class="section-title" style="margin-top: var(--space-lg);">scale / mode selection</div>
-  
-  <div class="scale-selector-extended">
-    <div class="root-note-selector">
-      <label>root note</label>
-      <select id="rootNote">
-        <option value="0" selected>C</option>
-        <option value="1">C# / Db</option>
-        <option value="2">D</option>
-        <option value="3">D# / Eb</option>
-        <option value="4">E</option>
-        <option value="5">F</option>
-        <option value="6">F# / Gb</option>
-        <option value="7">G</option>
-        <option value="8">G# / Ab</option>
-        <option value="9">A</option>
-        <option value="10">A# / Bb</option>
-        <option value="11">B</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="scale-presets-extended">
-    <button class="scale-preset-btn" data-scale="chromatic">Chromatic</button>
-    <button class="scale-preset-btn active" data-scale="major">Major</button>
-    <button class="scale-preset-btn" data-scale="minor">Natural Minor</button>
-    <button class="scale-preset-btn" data-scale="dorian">Dorian</button>
-    <button class="scale-preset-btn" data-scale="phrygian">Phrygian</button>
-    <button class="scale-preset-btn" data-scale="lydian">Lydian</button>
-    <button class="scale-preset-btn" data-scale="mixolydian">Mixolydian</button>
-    <button class="scale-preset-btn" data-scale="locrian">Locrian</button>
-    <button class="scale-preset-btn" data-scale="harmonic-minor">Harmonic Minor</button>
-    <button class="scale-preset-btn" data-scale="melodic-minor">Melodic Minor</button>
-    <button class="scale-preset-btn" data-scale="penta-maj">Penta Major</button>
-    <button class="scale-preset-btn" data-scale="penta-min">Penta Minor</button>
-    <button class="scale-preset-btn" data-scale="blues">Blues</button>
-    <button class="scale-preset-btn" data-scale="whole-tone">Whole Tone</button>
-    <button class="scale-preset-btn" data-scale="diminished">Diminished</button>
-  </div>
-
-  <!-- 16-Step Sequencer Grid -->
-  <div class="section-title" style="margin-top: var(--space-lg);">16-step sequence</div>
-  
-  <div class="sequencer-grid" id="sequencerGrid">
-    <!-- Generated by JavaScript - 16 cells like this: -->
-    <!--
-    <div class="seq-cell" data-step="0">
-      <div class="seq-cell-header">
-        <span class="seq-cell-number">1</span>
-        <input type="checkbox" class="seq-cell-toggle">
-      </div>
-      <div class="transpose-control">
-        <span class="transpose-label">transpose</span>
-        <div class="transpose-display">0</div>
-        <input type="range" class="transpose-slider" min="-24" max="24" value="0" step="1">
-      </div>
-      <div class="repeats-control">
-        <span class="repeats-label">×</span>
-        <input type="number" class="repeats-input" min="1" max="64" value="1">
-      </div>
-    </div>
-    -->
-  </div>
-
-  <div class="sequencer-actions">
-    <button class="seq-action-btn" id="seqResetBtn">Reset to Step 1</button>
-    <button class="seq-action-btn" id="seqClearBtn">Clear All Steps</button>
-    <button class="seq-action-btn" id="seqRandomizeBtn">Randomize Transpose</button>
-  </div>
-
-  <div class="hint-text" style="margin-top: var(--space-md);">
-    <p><strong>Transpose Sequencer:</strong></p>
-    <p>• Each step advances when Just Friends #1 completes a cycle</p>
-    <p>• <strong>Transpose:</strong> -24 to +24 semitones within selected scale</p>
-    <p>• <strong>Repeats:</strong> How many JF cycles before advancing to next step</p>
-    <p>• <strong>Active:</strong> Check to enable a step (inactive steps are skipped)</p>
-    <p>• <strong>Playback Modes:</strong> Forward, Backward, Ping-Pong, Random</p>
-  </div>
-</div>
-
-    <!-- PIANO KEYBOARD -->
-    <div class="panel-section keyboard-panel">
-      <div class="section-title">note mask (click to toggle)</div>
-      <div class="piano-keyboard" id="pianoKeyboard">
-        <!-- Generated by JS -->
-      </div>
-      <div class="keyboard-labels">
-        <span>C</span>
-        <span>C#</span>
-        <span>D</span>
-        <span>D#</span>
-        <span>E</span>
-        <span>F</span>
-        <span>F#</span>
-        <span>G</span>
-        <span>G#</span>
-        <span>A</span>
-        <span>A#</span>
-        <span>B</span>
-      </div>
-    </div>
-    
-    <!-- MOD MATRIX -->
-    <div class="panel-section mod-matrix-panel">
-      <div class="section-title">modulation matrix → route jf slopes to parameters</div>
-      <div class="mod-slots-container" id="modSlotsContainer"></div>
-        <div class="mod-matrix-hint">
-          <p><strong>Modulation Matrix:</strong> Route Just Friends slopes 2N-6N to any parameter</p>
-          <p>Each slot can target a different destination with independent depth/offset/polarity</p>
-        </div>
-    </div>
-
-    <!-- MANGROVE A - VOICE OSCILLATOR -->
-    <div class="panel-section" id="mangrovePanel">
-      <div class="section-title">mangrove A → voice oscillator</div>
-      
-      <div class="param-row">
-        <label for="maPitch">pitch</label>
-        <input type="range" id="maPitch" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="maPitchValue">0.50</span>
-      </div>
-
-      <div class="param-row">
-        <label for="maBarrel">barrel</label>
-        <input type="range" id="maBarrel" min="0" max="1" step="0.001" value="0.3">
-        <span class="param-value" id="maBarrelValue">0.30</span>
-      </div>
-
-      <div class="param-row">
-        <label for="maFormant">formant</label>
-        <input type="range" id="maFormant" min="0" max="1" step="0.001" value="0.6">
-        <span class="param-value" id="maFormantValue">0.60</span>
-      </div>
-
-      <div class="param-row">
-        <label for="maAir">air</label>
-        <input type="range" id="maAir" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="maAirValue">0.50</span>
-      </div>
-
-      <div class="param-row">
-        <label for="maFmIndex">fm depth</label>
-        <input type="range" id="maFmIndex" min="0" max="1" step="0.001" value="0.3">
-        <span class="param-value" id="maFmIndexValue">0.30</span>
-      </div>
-    </div>
-
-    <!-- JUST FRIENDS OSC - FULL OSCILLATOR -->
-    <div class="panel-section" id="jfOscPanel" style="display: none;">
-      <div class="section-title">
-        just friends osc → 6-voice multi-mode
-        <span class="mode-badge" id="jfOscModeBadge">cycle/sound</span>
-      </div>
-      
-      <div class="jfosc-mode-controls">
-        <div class="param-row">
-          <label>mode</label>
-          <select id="jfOscMode">
-            <option value="0">transient</option>
-            <option value="1">sustain</option>
-            <option value="2" selected>cycle</option>
-          </select>
-        </div>
-
-        <div class="param-row">
-          <label>range</label>
-          <select id="jfOscRange">
-            <option value="0">shape (LFO)</option>
-            <option value="1" selected>sound (VCO)</option>
-          </select>
-        </div>
-
-        <div class="param-row">
-          <label class="toggle-label">
-            <input type="checkbox" id="jfOscRunToggle">
-            <span class="toggle-text">RUN Mode</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="param-row">
-        <label for="jfOscTime">time</label>
-        <input type="range" id="jfOscTime" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="jfOscTimeValue">0.50</span>
-      </div>
-
-      <div class="param-row">
-        <label for="jfOscIntone">intone</label>
-        <input type="range" id="jfOscIntone" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="jfOscIntoneValue">0.50</span>
-      </div>
-
-      <div class="param-row">
-        <label for="jfOscRamp">ramp</label>
-        <input type="range" id="jfOscRamp" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="jfOscRampValue">0.50</span>
-      </div>
-
-      <div class="param-row">
-        <label for="jfOscCurve">curve</label>
-        <input type="range" id="jfOscCurve" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="jfOscCurveValue">0.50</span>
-      </div>
-
-      <div class="param-row">
-        <label for="jfOscFmIndex">fm index</label>
-        <input type="range" id="jfOscFmIndex" min="-1" max="1" step="0.001" value="0">
-        <span class="param-value" id="jfOscFmIndexValue">0.00</span>
-      </div>
-
-      <div class="param-row">
-        <label for="jfOscRun">run</label>
-        <input type="range" id="jfOscRun" min="-1" max="1" step="0.001" value="0">
-        <span class="param-value" id="jfOscRunValue">0.00</span>
-      </div>
-
-      <div class="jfosc-triggers">
-        <div class="section-title" style="margin-top: 1rem; margin-bottom: 0.5rem;">triggers (for envelope modes)</div>
-        <div class="trigger-group">
-          <button class="jfosc-trigger-btn" data-index="0">1N</button>
-          <button class="jfosc-trigger-btn" data-index="1">2N</button>
-          <button class="jfosc-trigger-btn" data-index="2">3N</button>
-          <button class="jfosc-trigger-btn" data-index="3">4N</button>
-          <button class="jfosc-trigger-btn" data-index="4">5N</button>
-          <button class="jfosc-trigger-btn" data-index="5">6N</button>
-        </div>
-      </div>
-
-      <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: 1rem;">
-        <strong>TIME:</strong> Pitch (sound) or rate (shape)<br>
-        <strong>INTONE:</strong> Harmonic spread (undertones ↔ unison ↔ overtones)<br>
-        <strong>RUN MODES:</strong> SHIFT, STRATA, VOLLEY, SPILL, PLUME, FLOOM<br>
-        <strong>TRIGGERS:</strong> Cascade from 6N → 1N (normalling behavior)
-      </div>
-    </div>
-
-    <!-- MANGROVE B - FM MODULATOR FOR A -->
-    <div class="panel-section">
-      <div class="section-title">mangrove B → FM source</div>
-      
-      <div class="param-row">
-        <label for="mbPitch">pitch</label>
-        <input type="range" id="mbPitch" min="0" max="1" step="0.001" value="0.52">
-        <span class="param-value" id="mbPitchValue">0.52</span>
-      </div>
-
-      <div class="param-row">
-        <label for="mbBarrel">barrel</label>
-        <input type="range" id="mbBarrel" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="mbBarrelValue">0.50</span>
-      </div>
-
-      <div class="param-row">
-        <label for="mbFormant">formant</label>
-        <input type="range" id="mbFormant" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="mbFormantValue">0.50</span>
-      </div>
-    </div>
-
-    <!-- MANGROVE C - FM SOURCE FOR FILTER -->
-    <div class="panel-section">
-      <div class="section-title">mangrove C → FM source for filter</div>
-      
-      <div class="param-row">
-        <label for="mcPitch">pitch</label>
-        <input type="range" id="mcPitch" min="0" max="1" step="0.001" value="0.6">
-        <span class="param-value" id="mcPitchValue">0.60</span>
-      </div>
-
-      <div class="param-row">
-        <label for="mcBarrel">barrel</label>
-        <input type="range" id="mcBarrel" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="mcBarrelValue">0.50</span>
-      </div>
-
-      <div class="param-row">
-        <label for="mcFormant">formant</label>
-        <input type="range" id="mcFormant" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="mcFormantValue">0.50</span>
-      </div>
-    </div>
-
-    <!-- THREE SISTERS FILTER -->
-    <div class="panel-section">
-      <div class="section-title">three sisters → multi-mode filter</div>
-      
-      <div class="param-row">
-        <label for="tsFreq">freq</label>
-        <input type="range" id="tsFreq" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="tsFreqValue">0.50</span>
-      </div>
-
-      <div class="param-row">
-        <label for="tsSpan">span</label>
-        <input type="range" id="tsSpan" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="tsSpanValue">0.50</span>
-      </div>
-
-      <div class="param-row">
-        <label for="tsQuality">quality</label>
-        <input type="range" id="tsQuality" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="tsQualityValue">0.50</span>
-      </div>
-
-      <div class="param-row">
-        <label>mode</label>
-        <select id="tsMode">
-          <option value="0" selected>crossover</option>
-          <option value="1">formant</option>
-        </select>
-      </div>
-
-      <div class="param-row">
-        <label for="tsFmAtten">fm atten</label>
-        <input type="range" id="tsFmAtten" min="0" max="1" step="0.001" value="0.5">
-        <span class="param-value" id="tsFmAttenValue">0.50</span>
-      </div>
-
-      <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: 8px;">
-        <strong>FREQ:</strong> Main cutoff (20Hz - 10kHz, exponential 1V/oct)<br>
-        <strong>SPAN:</strong> Spreads LOW/HIGH apart (CCW=narrow, CW=wide)<br>
-        <strong>QUALITY:</strong> CCW=notch, noon=neutral (Q=0.707), CW=resonance→oscillation<br>
-        <strong>MODE:</strong> Crossover (LP/band/HP) vs Formant (3× BP)<br>
-        <strong>FM ATTEN:</strong> Bipolar (CCW=negative, noon=off, CW=positive)
-      </div>
-    </div>
-
-    <!-- SCOPE 2 - POST-FILTER OUTPUT -->
+    <!-- SCOPE 2 -->
     <div class="panel-section scope-panel">
-      <div class="section-title">scope 2: post-filter output (ready for VCA)</div>
-      <canvas id="scope2" width="600" height="200"></canvas>
-      <div class="scope-info">
-        <span>Filtered signal with spectral shaping and FM</span>
-      </div>
+      <h2 class="section-title">scope 2 (three sisters output)</h2>
+      <canvas id="scope2" width="800" height="200"></canvas>
+      <p class="scope-info">Final audio output</p>
     </div>
 
     <!-- MASTER CONTROLS -->
     <div class="panel-section">
-      <div class="section-title">master output</div>
+      <h2 class="section-title">master</h2>
       
       <div class="param-row">
-        <label for="masterVolume">volume</label>
+        <label>volume</label>
         <input type="range" id="masterVolume" min="0" max="1" step="0.01" value="0.3">
         <span class="param-value" id="masterVolumeValue">0.30</span>
       </div>
-
-      <button id="startBtn" class="action-btn" disabled>
-        <span class="btn-icon">▶</span>
-        Start Audio
+      
+      <button class="action-btn" id="startBtn" disabled>
+        <span class="btn-icon">▶</span> Start Audio
       </button>
-
-      <div class="hint-text" style="margin-top: 1rem;">
-        <p><strong>Oscillator Selection:</strong></p>
-        <p>• <strong>Mangrove:</strong> Formant oscillator with variable wave symmetry</p>
-        <p>• <strong>Just Friends:</strong> 6-voice oscillator with overtones/undertones</p>
-        <p><strong>FM Modes:</strong></p>
-        <p>• <strong>Exponential:</strong> Pitch modulation (vibrato, glide effects)</p>
-        <p>• <strong>Linear:</strong> Through-zero FM (harmonic sidebands)</p>
-        <p><strong>Just Friends RUN Modes:</strong> SHIFT, STRATA, VOLLEY, SPILL, PLUME, FLOOM</p>
-      </div>
     </div>
-
   </div>
 
   <div class="footer">
     <div class="footer-hint">
-      Phase 5: Oscillator selection + Three Sisters multi-mode filter
-    </div>
-    <div class="footer-hint">
-      Toggle between Mangrove and Just Friends with crossfade
+      Phase 5 - Modular synthesis system with transpose sequencing
     </div>
   </div>
 
-  <script type="module" src="main.js"></script>
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
