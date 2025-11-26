@@ -836,28 +836,34 @@ class Phase5App {
     // JF Osc controls
     this.bindKnob('jfOscTime', (val) => {
       if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.time) {
-              this.jfOsc.params.time.value = val;
-            }
+        this.jfOsc.params.time.value = val;
+      }
+    });
     this.bindKnob('jfOscIntone', (val) => {
       if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.intone) {
-              this.jfOsc.params.time.value = val;
-            }
+        this.jfOsc.params.intone.value = val;
+      }
+    });
     this.bindKnob('jfOscRamp', (val) => {
       if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.ramp) {
-              this.jfOsc.params.time.value = val;
-            }
+        this.jfOsc.params.ramp.value = val;
+      }
+    });
     this.bindKnob('jfOscCurve', (val) => {
       if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.curve) {
-              this.jfOsc.params.time.value = val;
-            }
+        this.jfOsc.params.curve.value = val;
+      }
+    });
     this.bindKnob('jfOscFmIndex', (val) => {
       if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.fmIndex) {
-              this.jfOsc.params.time.value = val;
-            }
+        this.jfOsc.params.fmIndex.value = val;
+      }
+    });
     this.bindKnob('jfOscRun', (val) => {
       if (this.jfOsc && this.jfOsc.params && this.jfOsc.params.run) {
-              this.jfOsc.params.time.value = val;
-            }
+        this.jfOsc.params.run.value = val;
+      }
+    });
 
     // JF Osc mode selection
     const jfOscMode = document.getElementById('jfOscMode');
