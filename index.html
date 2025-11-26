@@ -83,11 +83,17 @@
         <input type="range" id="quantDepth" min="0" max="1" step="0.01" value="0.4">
         <span class="param-value" id="quantDepthValue">0.40</span>
       </div>
+      <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: -8px; margin-bottom: 12px;">
+        octave range: 0 = single note, 1.0 = full octave
+      </div>
 
       <div class="param-row">
         <label for="quantOffset">offset</label>
         <input type="range" id="quantOffset" min="-2" max="2" step="0.1" value="0">
         <span class="param-value" id="quantOffsetValue">0.0</span>
+      </div>
+      <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: -8px; margin-bottom: 12px;">
+        transpose after quantization
       </div>
 
       <div class="scale-presets">
@@ -167,7 +173,9 @@
 
       <div class="hint-text" style="margin-top: 1rem;">
         <p><strong>Signal Flow:</strong> JF #1 → Scope 1 → Quantizer → Mangrove A</p>
-        <p><strong>Tips:</strong> Adjust DEPTH for pitch range, use piano keys to select scale, OFFSET transposes.</p>
+        <p><strong>DEPTH:</strong> Controls octave range. 0 = single note, 1.0 = full octave (12 semitones)</p>
+        <p><strong>OFFSET:</strong> Transposes the quantized pattern up or down</p>
+        <p><strong>Tips:</strong> Start with depth ~0.4 for melodic movement. Use piano keys to select scale notes.</p>
       </div>
     </div>
 
