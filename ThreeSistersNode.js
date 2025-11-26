@@ -18,7 +18,7 @@ export class ThreeSistersNode extends AudioWorkletNode {
       span: this.parameters.get('span'),
       quality: this.parameters.get('quality'),
       mode: this.parameters.get('mode'),
-      fmDepth: this.parameters.get('fmDepth')
+      fmAttenuverter: this.parameters.get('fmAttenuverter')
     };
 
     // Create channel splitter for accessing separate outputs
@@ -73,9 +73,10 @@ export class ThreeSistersNode extends AudioWorkletNode {
     this.params.mode.value = modeValue < 0.5 ? 0 : 1;
   }
 
-  setFMDepth(knobValue) {
-    // 0-1 range, scales FM input
-    this.params.fmDepth.value = Math.max(0, Math.min(1, knobValue));
+  setFMAttenuverter(knobValue) {
+    // 0-1 range: 0 = full negative, 0.5 = off (noon), 1 = full positive
+    // This matches the technical map's FM attenuverter
+    this.params.fmAttenuverter.value = Math.max(0, Math.min(1, knobValue));
   }
 
   // ========== OUTPUT ACCESSORS ==========
