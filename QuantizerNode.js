@@ -33,13 +33,13 @@ export class QuantizerNode extends AudioWorkletNode {
   // ========== PARAMETER SETTERS ==========
 
   setDepth(value) {
-    // 0 = no modulation, 1 = full range
-    this.params.depth.value = Math.max(0, Math.min(1, value));
+    // 0 = no modulation (single note), 8 = eight octaves
+    this.params.depth.value = Math.max(0, Math.min(8, value));
   }
 
   setOffset(volts) {
-    // -2V to +2V (transposition range)
-    this.params.offset.value = Math.max(-2, Math.min(2, volts));
+    // -4V to +4V (transposition range)
+    this.params.offset.value = Math.max(-4, Math.min(4, volts));
   }
 
   // ========== NOTE MASK MANAGEMENT ==========
