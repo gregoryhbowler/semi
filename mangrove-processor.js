@@ -1,6 +1,7 @@
 // mangrove-processor.js
 // Mangrove Formant Oscillator - AudioWorklet Processor
 // Based on Mannequins Mangrove technical specifications
+// UPDATED: Proper FM depth for rich timbres as shown in technical manual
 
 class MangroveProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -9,7 +10,7 @@ class MangroveProcessor extends AudioWorkletProcessor {
       { name: 'pitchKnob', defaultValue: 0.5, minValue: 0, maxValue: 1 },
       { name: 'fineKnob', defaultValue: 0.5, minValue: 0, maxValue: 1 },
       
-      // FM controls
+      // FM controls - NOW WITH PROPER SCALING
       { name: 'fmIndex', defaultValue: 1.0, minValue: 0, maxValue: 1 },
       
       // Impulse shaping
@@ -130,9 +131,7 @@ class MangroveProcessor extends AudioWorkletProcessor {
       const pitchKnob = parameters.pitchKnob[i] || parameters.pitchKnob[0];
       const fineKnob = parameters.fineKnob[i] || parameters.fineKnob[0];
       
-      // CRITICAL FIX: Convert pitch CV from Web Audio range back to voltage
-      // Quantizer outputs voltages divided by 5 for Web Audio normalization
-      // We need to multiply by 5 to get back to actual voltage values
+      // Convert pitch CV from Web Audio range back to voltage
       const pitchVolt = (pitchCV[i] || 0) * 5.0;
       
       const baseFreq = this.pitchKnobToFreq(pitchKnob);
@@ -141,16 +140,20 @@ class MangroveProcessor extends AudioWorkletProcessor {
       
       this.frequency = baseFreq * Math.pow(2, totalVolt);
       
-      // Apply linear FM
-      // FM Index scaling: fmIndex parameter scales the modulation depth
-      // Scale by carrier frequency for musically useful modulation index
-      const fmIndex = parameters.fmIndex[i] || parameters.fmIndex[0];
+      // === CRITICAL FM UPDATE: Proper scaling for rich timbres ===
+      // Apply linear FM with dramatically increased depth
+      const fmIndexParam = parameters.fmIndex[i] || parameters.fmIndex[0];
       const fmSignal = fmInput[i] || 0;
       
-      // fmSignal is normalized ±1 (from ±5V square wave)
-      // Scale by carrier frequency to create proper FM index
-      // fmIndex of 1.0 = frequency deviation of up to 2x carrier frequency
-      const fmAmount = fmSignal * fmIndex * this.frequency * 2.0;
+      // Scale fmIndex parameter (0-1) to useful FM synthesis index (0-20)
+      // FM Index in synthesis: ratio of frequency deviation to modulator frequency
+      // Index 1-5 = harmonic tones, 5-10 = complex tones, 10-20 = inharmonic/metallic
+      const actualFmIndex = fmIndexParam * 20.0;
+      
+      // fmSignal is normalized ±1 (from ±5V square wave or other audio source)
+      // Linear FM: frequency_deviation = FM_index × carrier_frequency × modulator_signal
+      // This creates the rich sidebands shown in the technical manual (page 19)
+      const fmAmount = fmSignal * actualFmIndex * this.frequency;
       const modulatedFreq = Math.max(0.1, this.frequency + fmAmount);
       
       // Advance triangle oscillator phase
@@ -175,7 +178,6 @@ class MangroveProcessor extends AudioWorkletProcessor {
       
       // Map barrel to rise/fall ratio
       // 0.0 = 100% rise (ramp), 0.5 = 50/50 (triangle), 1.0 = 100% fall (saw)
-      // As BARREL increases, rise decreases and fall increases
       this.impulseRiseTime = 1.0 - barrelTotal;
       this.impulseFallTime = barrelTotal;
       
@@ -237,7 +239,6 @@ class MangroveProcessor extends AudioWorkletProcessor {
       let vcaOut = this.impulseValue * airTotal;
       
       // Waveshaper: higher AIR values add overdrive
-      // Starts around 9:00, full at max
       const shapeAmount = Math.max(0, (airTotal - 0.25) / 0.75);
       const shaped = this.waveshape(vcaOut / 5.0, shapeAmount);
       
