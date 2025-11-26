@@ -1,6 +1,7 @@
 // quantizer-processor.js
-// CV Quantizer - AudioWorklet Processor
+// CV Quantizer - AudioWorkletProcessor
 // Converts continuous audio-rate CV into quantized audio-rate CV (1V/oct space)
+// NOW WITH TRANSPOSE SEQUENCER SUPPORT
 // NO MIDI, NO TRIGGERS - pure analog-style quantization
 
 class QuantizerProcessor extends AudioWorkletProcessor {
@@ -10,7 +11,10 @@ class QuantizerProcessor extends AudioWorkletProcessor {
       { name: 'depth', defaultValue: 1.0, minValue: 0, maxValue: 8.0 },
       
       // Offset: shifts CV after quantization (-4V to +4V for transposition)
-      { name: 'offset', defaultValue: 0.0, minValue: -4.0, maxValue: 4.0 }
+      { name: 'offset', defaultValue: 0.0, minValue: -4.0, maxValue: 4.0 },
+      
+      // Transpose: semitone offset within scale (-24 to +24)
+      { name: 'transpose', defaultValue: 0, minValue: -24, maxValue: 24 }
     ];
   }
 
@@ -21,6 +25,9 @@ class QuantizerProcessor extends AudioWorkletProcessor {
     // Default: chromatic scale (all notes allowed)
     this.noteMask = new Array(12).fill(true);
     
+    // Get list of allowed notes (indices 0-11)
+    this.updateAllowedNotes();
+    
     // Debug counters
     this.sampleCount = 0;
     this.debugInterval = 48000; // Log every second at 48kHz
@@ -29,10 +36,25 @@ class QuantizerProcessor extends AudioWorkletProcessor {
     this.port.onmessage = (event) => {
       if (event.data.type === 'noteMask') {
         this.noteMask = event.data.mask;
-        const activeNotes = this.noteMask.filter(n => n).length;
-        console.log(`[Quantizer] Note mask updated: ${activeNotes}/12 notes active`);
+        this.updateAllowedNotes();
+        console.log(`[Quantizer] Note mask updated: ${this.allowedNotes.length}/12 notes active`);
       }
     };
+  }
+
+  // Update the list of allowed note indices
+  updateAllowedNotes() {
+    this.allowedNotes = [];
+    for (let i = 0; i < 12; i++) {
+      if (this.noteMask[i]) {
+        this.allowedNotes.push(i);
+      }
+    }
+    
+    // If no notes are allowed, default to C
+    if (this.allowedNotes.length === 0) {
+      this.allowedNotes = [0];
+    }
   }
 
   // Find nearest allowed semitone index (0-11) within an octave
@@ -94,6 +116,46 @@ class QuantizerProcessor extends AudioWorkletProcessor {
     return quantizedSemitones / 12.0;
   }
 
+  // Transpose within scale by N semitones
+  // This keeps the result within the allowed notes
+  transposeInScale(voltsIn, transposeSemitones) {
+    if (transposeSemitones === 0) {
+      return voltsIn;
+    }
+    
+    // Convert voltage to semitones
+    const totalSemitones = Math.round(voltsIn * 12.0);
+    
+    // Split into octave and semitone-within-octave
+    let octave = Math.floor(totalSemitones / 12.0);
+    let noteIdx = totalSemitones - (octave * 12);
+    noteIdx = ((noteIdx % 12) + 12) % 12;
+    
+    // Find current note's position in allowedNotes array
+    let currentPos = this.allowedNotes.indexOf(noteIdx);
+    if (currentPos === -1) {
+      // Note not in scale (shouldn't happen after quantization)
+      currentPos = 0;
+    }
+    
+    // Apply transpose by moving through the scale
+    let targetPos = currentPos + transposeSemitones;
+    
+    // Calculate octave shifts
+    const scaleLength = this.allowedNotes.length;
+    const octaveShifts = Math.floor(targetPos / scaleLength);
+    targetPos = ((targetPos % scaleLength) + scaleLength) % scaleLength;
+    
+    octave += octaveShifts;
+    
+    // Get the new note
+    const newNoteIdx = this.allowedNotes[targetPos];
+    
+    // Reconstruct voltage
+    const newSemitones = (octave * 12) + newNoteIdx;
+    return newSemitones / 12.0;
+  }
+
   process(inputs, outputs, parameters) {
     const input = inputs[0];
     const output = outputs[0];
@@ -113,7 +175,8 @@ class QuantizerProcessor extends AudioWorkletProcessor {
         inputMax: -Infinity,
         outputMin: Infinity,
         outputMax: -Infinity,
-        quantizedValues: new Set()
+        quantizedValues: new Set(),
+        transposedValues: new Set()
       };
     }
     
@@ -121,6 +184,7 @@ class QuantizerProcessor extends AudioWorkletProcessor {
       // Get parameters
       const depth = parameters.depth[i] ?? parameters.depth[0];
       const offset = parameters.offset[i] ?? parameters.offset[0];
+      const transpose = Math.round(parameters.transpose[i] ?? parameters.transpose[0]);
       
       // Read input CV from Just Friends
       // JF SHAPE mode outputs 0-8V, normalized to 0-1.6 in Web Audio
@@ -132,16 +196,17 @@ class QuantizerProcessor extends AudioWorkletProcessor {
       
       // Apply depth to map to voltage range
       // depth is now in octaves (0-8 range)
-      // depth = 0 → 0V (single note)
-      // depth = 1.0 → 1V (1 octave = 12 semitones)
-      // depth = 2.5 → 2.5V (2.5 octaves = 30 semitones)
-      // depth = 8.0 → 8V (8 octaves = 96 semitones)
       const volts = normalized * depth;
       
       // Quantize to nearest allowed note
-      const quantizedVolts = this.quantizeVoltage(volts);
+      let quantizedVolts = this.quantizeVoltage(volts);
       
-      // Apply offset AFTER quantization (transposition)
+      // Apply transpose WITHIN SCALE
+      if (transpose !== 0) {
+        quantizedVolts = this.transposeInScale(quantizedVolts, transpose);
+      }
+      
+      // Apply offset AFTER transpose (final transposition)
       const finalVolts = quantizedVolts + offset;
       
       // Convert to Web Audio range for Mangrove pitch CV
@@ -155,6 +220,9 @@ class QuantizerProcessor extends AudioWorkletProcessor {
         debugValues.outputMin = Math.min(debugValues.outputMin, finalVolts);
         debugValues.outputMax = Math.max(debugValues.outputMax, finalVolts);
         debugValues.quantizedValues.add(quantizedVolts.toFixed(3));
+        if (transpose !== 0) {
+          debugValues.transposedValues.add(finalVolts.toFixed(3));
+        }
       }
       
       this.sampleCount++;
@@ -169,6 +237,8 @@ class QuantizerProcessor extends AudioWorkletProcessor {
         noteValues: Array.from(debugValues.quantizedValues).slice(0, 8).join(', '),
         depth: parameters.depth[0].toFixed(2),
         offset: parameters.offset[0].toFixed(2),
+        transpose: Math.round(parameters.transpose[0]),
+        scaleNotes: this.allowedNotes.length,
         activeMask: this.noteMask.map((v, i) => v ? i : -1).filter(v => v >= 0).join(',')
       });
     }
