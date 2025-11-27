@@ -1,6 +1,7 @@
-// envelope-processor.js
+// envelope-processor.js (FIXED VERSION)
 // High-quality AD/ASR Envelope + VCA
 // Supports very short plucks to long pads with linear/exponential curves
+// FIX: Removed broken scheduling system, using immediate gate processing
 
 class EnvelopeProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -24,22 +25,20 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
     this.phase = 0;
     this.phaseDelta = 0;
     
-    // Gate handling
+    // Gate handling - using immediate flags instead of broken scheduling
     this.gateOn = false;
-    this.scheduledEvents = [];
-    
-    // Time tracking for scheduled events
-    this.samplesSinceStart = 0;
+    this.pendingGateOn = false;
+    this.pendingGateOff = false;
     
     // Listen for gate events from main thread
     this.port.onmessage = (event) => {
       if (event.data.type === 'gate') {
-        // Convert absolute AudioContext time to sample-relative time
-        const eventSampleTime = Math.floor(event.data.time * sampleRate);
-        this.scheduledEvents.push({
-          sampleTime: eventSampleTime,
-          isOn: event.data.isOn
-        });
+        // Process gate changes immediately on next process() call
+        if (event.data.isOn) {
+          this.pendingGateOn = true;
+        } else {
+          this.pendingGateOff = true;
+        }
       }
     };
     
@@ -209,26 +208,16 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
     const mode = parameters.mode[0];
     const curve = parameters.curve[0];
     
-    // Process scheduled gate events
-    // Filter and process events that should trigger now
-    const currentSampleTime = this.samplesSinceStart;
-    const newScheduledEvents = [];
-    
-    for (const event of this.scheduledEvents) {
-      if (event.sampleTime <= currentSampleTime) {
-        // Process this event
-        if (event.isOn) {
-          this.triggerGateOn(mode, attack, sampleRate);
-        } else {
-          this.triggerGateOff(mode, decay, sustain, sampleRate);
-        }
-      } else {
-        // Keep future events
-        newScheduledEvents.push(event);
-      }
+    // Process pending gate events (FIXED: immediate processing)
+    if (this.pendingGateOn) {
+      this.triggerGateOn(mode, attack, sampleRate);
+      this.pendingGateOn = false;
     }
     
-    this.scheduledEvents = newScheduledEvents;
+    if (this.pendingGateOff) {
+      this.triggerGateOff(mode, decay, sustain, sampleRate);
+      this.pendingGateOff = false;
+    }
     
     // Process each sample
     for (let i = 0; i < audioIn.length; i++) {
@@ -239,7 +228,6 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
       audioOut[i] = audioIn[i] * envValue;
       
       this.debugCounter++;
-      this.samplesSinceStart++;
     }
     
     // Debug logging
