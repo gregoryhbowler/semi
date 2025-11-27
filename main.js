@@ -15,6 +15,7 @@ import { TransposeSequencerNode } from './TransposeSequencerNode.js';
 import { MangroveNode } from './MangroveNode.js';
 import { ThreeSistersNode } from './ThreeSistersNode.js';
 import { ModulationMatrixNode } from './outputs/ModulationMatrixNode.js';
+import { initReneMode, toggleReneMode, reneSequencer, envelopeVCA } from './rene-integration.js';
 
 class Phase5App {
   constructor() {
@@ -30,6 +31,7 @@ class Phase5App {
     this.jfOsc = null; // Full Just Friends oscillator
     this.threeSisters = null;
     this.masterGain = null;
+    this.renePitchGain = null;
     
     // Modulation matrix
     this.modMatrix = null;
@@ -80,6 +82,7 @@ class Phase5App {
       await this.audioContext.audioWorklet.addModule('./mangrove-processor.js');
       await this.audioContext.audioWorklet.addModule('./three-sisters-processor.js');
       await this.audioContext.audioWorklet.addModule('./modulation-matrix-processor.js');
+      await this.audioContext.audioWorklet.addModule('./envelope-processor.js');
       
       console.log('%c✓ All AudioWorklets loaded - Phase 5 + JF Osc Integration + Transpose Sequencer', 'color: green; font-weight: bold');
       
@@ -89,6 +92,9 @@ class Phase5App {
       await new Promise(resolve => setTimeout(resolve, 10));
       this.transposeSeq = new TransposeSequencerNode(this.audioContext);
       this.quantizer = new QuantizerNode(this.audioContext);
+      this.renePitchGain = this.audioContext.createGain();
+      this.renePitchGain.gain.value = 0; // Start silent
+      this.renePitchGain.connect(this.quantizer.getInput());
       this.mangroveA = new MangroveNode(this.audioContext);
       this.mangroveB = new MangroveNode(this.audioContext);
       this.mangroveC = new MangroveNode(this.audioContext);
