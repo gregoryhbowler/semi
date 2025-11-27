@@ -30,6 +30,7 @@ export function createEnhancedKnobCell(index, lane, defaultValue) {
   cell.className = 'rene-knob-cell';
   cell.dataset.lane = lane;
   cell.dataset.step = index;
+  cell.dataset.value = defaultValue;
   
   const noteNames = ['C0', 'D0', 'E0', 'F0', 'G0', 'A0', 'B0', 'C1', 
                      'D1', 'E1', 'F1', 'G1', 'A1', 'B1', 'C2', 'D2'];
@@ -40,14 +41,6 @@ export function createEnhancedKnobCell(index, lane, defaultValue) {
       <div class="knob-circle">
         <div class="knob-indicator"></div>
       </div>
-      <input type="range" 
-             class="rene-knob-input" 
-             data-lane="${lane}" 
-             data-step="${index}"
-             min="0" 
-             max="1" 
-             step="0.01" 
-             value="${defaultValue}">
     </div>
     <span class="knob-value">${defaultValue.toFixed(2)}</span>
   `;
@@ -55,15 +48,95 @@ export function createEnhancedKnobCell(index, lane, defaultValue) {
   // Set initial rotation
   updateKnobRotation(cell, defaultValue);
   
-  // Bind input event
-  const input = cell.querySelector('.rene-knob-input');
+  // Add drag interaction
+  const knobRotary = cell.querySelector('.knob-rotary');
   const valueDisplay = cell.querySelector('.knob-value');
   
-  input.addEventListener('input', (e) => {
-    const value = parseFloat(e.target.value);
-    valueDisplay.textContent = value.toFixed(2);
-    updateKnobRotation(cell, value);
-  });
+  let isDragging = false;
+  let startY = 0;
+  let startValue = defaultValue;
+  
+  const handleMouseDown = (e) => {
+    isDragging = true;
+    startY = e.clientY;
+    startValue = parseFloat(cell.dataset.value);
+    knobRotary.style.cursor = 'grabbing';
+    e.preventDefault();
+  };
+  
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    
+    // Calculate change based on vertical mouse movement
+    const deltaY = startY - e.clientY; // Inverted: up = increase
+    const sensitivity = 0.005; // Adjust this for faster/slower response
+    let newValue = startValue + (deltaY * sensitivity);
+    
+    // Clamp to 0-1 range
+    newValue = Math.max(0, Math.min(1, newValue));
+    
+    // Update value
+    cell.dataset.value = newValue;
+    valueDisplay.textContent = newValue.toFixed(2);
+    updateKnobRotation(cell, newValue);
+    
+    // Trigger custom event for sequencer update
+    const changeEvent = new CustomEvent('knobchange', {
+      detail: { value: newValue, lane, step: index }
+    });
+    cell.dispatchEvent(changeEvent);
+  };
+  
+  const handleMouseUp = () => {
+    if (isDragging) {
+      isDragging = false;
+      knobRotary.style.cursor = 'grab';
+    }
+  };
+  
+  knobRotary.addEventListener('mousedown', handleMouseDown);
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+  
+  // Touch support
+  const handleTouchStart = (e) => {
+    isDragging = true;
+    startY = e.touches[0].clientY;
+    startValue = parseFloat(cell.dataset.value);
+    e.preventDefault();
+  };
+  
+  const handleTouchMove = (e) => {
+    if (!isDragging) return;
+    
+    const deltaY = startY - e.touches[0].clientY;
+    const sensitivity = 0.005;
+    let newValue = startValue + (deltaY * sensitivity);
+    
+    newValue = Math.max(0, Math.min(1, newValue));
+    
+    cell.dataset.value = newValue;
+    valueDisplay.textContent = newValue.toFixed(2);
+    updateKnobRotation(cell, newValue);
+    
+    const changeEvent = new CustomEvent('knobchange', {
+      detail: { value: newValue, lane, step: index }
+    });
+    cell.dispatchEvent(changeEvent);
+    
+    e.preventDefault();
+  };
+  
+  const handleTouchEnd = () => {
+    isDragging = false;
+  };
+  
+  knobRotary.addEventListener('touchstart', handleTouchStart, { passive: false });
+  knobRotary.addEventListener('touchmove', handleTouchMove, { passive: false });
+  knobRotary.addEventListener('touchend', handleTouchEnd);
+  
+  // Set initial cursor
+  knobRotary.style.cursor = 'grab';
   
   return cell;
 }
@@ -143,10 +216,9 @@ export function initializeEnhancedReneUI(reneSequencer) {
       const cell = createEnhancedKnobCell(i, 'note', 0.5);
       noteGrid.appendChild(cell);
       
-      // Bind to sequencer
-      const input = cell.querySelector('.rene-knob-input');
-      input.addEventListener('input', (e) => {
-        const value = parseFloat(e.target.value);
+      // Bind to sequencer using custom event
+      cell.addEventListener('knobchange', (e) => {
+        const { value } = e.detail;
         if (reneSequencer) {
           const values = [...reneSequencer.noteValues];
           values[i] = value;
@@ -185,10 +257,9 @@ export function initializeEnhancedReneUI(reneSequencer) {
       const cell = createEnhancedKnobCell(i, 'mod', 0);
       modGrid.appendChild(cell);
       
-      // Bind to sequencer
-      const input = cell.querySelector('.rene-knob-input');
-      input.addEventListener('input', (e) => {
-        const value = parseFloat(e.target.value);
+      // Bind to sequencer using custom event
+      cell.addEventListener('knobchange', (e) => {
+        const { value } = e.detail;
         if (reneSequencer) {
           const values = [...reneSequencer.modValues];
           values[i] = value;
