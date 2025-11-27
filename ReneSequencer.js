@@ -60,15 +60,16 @@ export class ReneSequencer {
     this.modPosition = 0;
     this.modDivCounter = 0;
     
-    // Division multipliers relative to base clock
+
+    // Division multipliers relative to base clock (16th notes)
     this.divisionMap = {
-      '1/16': 0.25,
-      '1/8': 0.5,
-      '1/4': 1,
-      '1/2': 2,
-      '1/1': 4,
-      '2/1': 8,
-      '2/2': 16
+      '1/16': 1,    // 1 sixteenth note
+      '1/8': 2,     // 2 sixteenth notes
+      '1/4': 4,     // 4 sixteenth notes
+      '1/2': 8,     // 8 sixteenth notes  
+      '1/1': 16,    // 16 sixteenth notes (whole note)
+      '2/1': 32,    // 32 sixteenth notes (2 whole notes)
+      '2/2': 64     // 64 sixteenth notes (4 whole notes)
     };
     
     console.log('✓ ReneSequencer initialized');
@@ -77,22 +78,23 @@ export class ReneSequencer {
   // ========== TEMPO & CLOCK ==========
   
   calculateBasePeriod(bpm) {
-    // Convert BPM to seconds per quarter note
-    const msPerBeat = 60000 / bpm;
-    return msPerBeat / 1000;
-  }
+  // Convert BPM to seconds per SIXTEENTH NOTE (smallest division)
+  const msPerQuarterNote = 60000 / bpm;
+  const msPerSixteenthNote = msPerQuarterNote / 4; // 4 sixteenth notes per quarter note
+  return msPerSixteenthNote / 1000;
+}
   
   setTempo(bpm) {
-    this.bpm = Math.max(10, Math.min(300, bpm));
-    this.basePeriod = this.calculateBasePeriod(this.bpm);
-    
-    // Snap next tick to current time to avoid drift
-    if (this.isRunning) {
-      this.nextTickTime = this.audioContext.currentTime;
-    }
-    
-    console.log(`René tempo: ${this.bpm} BPM (${(this.basePeriod * 1000).toFixed(1)}ms per quarter note)`);
+  this.bpm = Math.max(10, Math.min(300, bpm));
+  this.basePeriod = this.calculateBasePeriod(this.bpm);
+  
+  // Snap next tick to current time to avoid drift
+  if (this.isRunning) {
+    this.nextTickTime = this.audioContext.currentTime;
   }
+  
+  console.log(`René tempo: ${this.bpm} BPM (${(this.basePeriod * 1000).toFixed(1)}ms per 16th note)`);
+}
   
   getTempo() {
     return this.bpm;
