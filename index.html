@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Phase 5 - Transpose Sequencer</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="mod-matrix-styles.css">
+  <link rel="stylsheet" href="transpose-sequencer-styles.css">
 </head>
 <body>
   <div class="header">
@@ -149,7 +151,250 @@
       <p class="scope-info">Clock source for transpose sequencer</p>
     </div>
 
-    <!-- ... other panels (oscillators, filters, etc.) ... -->
+    <!-- OSCILLATOR SELECTION PANEL -->
+    <div class="panel-section oscillator-select-panel">
+      <h2 class="section-title">oscillator selection</h2>
+      
+      <div class="osc-toggle-group">
+        <button class="osc-toggle-btn active" data-osc="mangrove">
+          <span class="osc-name">Mangrove A</span>
+          <span class="osc-desc">Formant oscillator with FM</span>
+        </button>
+        <button class="osc-toggle-btn" data-osc="justfriends">
+          <span class="osc-name">Just Friends Osc</span>
+          <span class="osc-desc">6-slope waveshaper with RUN modes</span>
+        </button>
+      </div>
+
+      <!-- FM ROUTING SECTION -->
+      <div class="fm-toggle-section">
+        <h3 class="section-title">fm routing (mangrove b)</h3>
+        
+        <div class="param-row fm-toggle-row">
+          <label class="toggle-label">
+            <input type="checkbox" id="fmEnable">
+            <span class="toggle-text">Enable FM B → Active Oscillator</span>
+          </label>
+        </div>
+
+        <div class="fm-mode-group">
+          <button class="fm-mode-btn active" data-mode="exponential">
+            <span class="fm-mode-name">Exponential FM</span>
+            <span class="fm-mode-desc">Pitch modulation (1V/oct)</span>
+          </button>
+          <button class="fm-mode-btn" data-mode="linear">
+            <span class="fm-mode-name">Linear FM</span>
+            <span class="fm-mode-desc">Through-zero FM</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANGROVE A PANEL -->
+    <div class="panel-section" id="mangrovePanel">
+      <h2 class="section-title">mangrove a (main voice)</h2>
+      
+      <div class="param-row">
+        <label>pitch</label>
+        <input type="range" id="maPitch" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="maPitchValue">0.50</span>
+      </div>
+      
+      <div class="param-row">
+        <label>barrel</label>
+        <input type="range" id="maBarrel" min="0" max="1" step="0.01" value="0.3">
+        <span class="param-value" id="maBarrelValue">0.30</span>
+      </div>
+      
+      <div class="param-row">
+        <label>formant</label>
+        <input type="range" id="maFormant" min="0" max="1" step="0.01" value="0.6">
+        <span class="param-value" id="maFormantValue">0.60</span>
+      </div>
+      
+      <div class="param-row">
+        <label>air</label>
+        <input type="range" id="maAir" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="maAirValue">0.50</span>
+      </div>
+      
+      <div class="param-row">
+        <label>fm depth</label>
+        <input type="range" id="maFmIndex" min="0" max="1" step="0.01" value="0.3">
+        <span class="param-value" id="maFmIndexValue">0.30</span>
+      </div>
+    </div>
+
+    <!-- JUST FRIENDS OSC PANEL (hidden by default) -->
+    <div class="panel-section" id="jfOscPanel" style="display: none;">
+      <h2 class="section-title">
+        just friends osc
+        <span class="mode-badge" id="jfOscModeBadge">cycle/sound</span>
+      </h2>
+      
+      <div class="jfosc-mode-controls">
+        <select id="jfOscMode">
+          <option value="0">transient</option>
+          <option value="1">sustain</option>
+          <option value="2" selected>cycle</option>
+        </select>
+        
+        <select id="jfOscRange">
+          <option value="0">shape</option>
+          <option value="1" selected>sound</option>
+        </select>
+        
+        <label class="toggle-label">
+          <input type="checkbox" id="jfOscRunToggle">
+          <span class="toggle-text">RUN</span>
+        </label>
+      </div>
+      
+      <div class="param-row">
+        <label>time</label>
+        <input type="range" id="jfOscTime" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="jfOscTimeValue">0.50</span>
+      </div>
+      
+      <div class="param-row">
+        <label>intone</label>
+        <input type="range" id="jfOscIntone" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="jfOscIntoneValue">0.50</span>
+      </div>
+      
+      <div class="param-row">
+        <label>ramp</label>
+        <input type="range" id="jfOscRamp" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="jfOscRampValue">0.50</span>
+      </div>
+      
+      <div class="param-row">
+        <label>curve</label>
+        <input type="range" id="jfOscCurve" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="jfOscCurveValue">0.50</span>
+      </div>
+      
+      <div class="param-row">
+        <label>fm index</label>
+        <input type="range" id="jfOscFmIndex" min="-1" max="1" step="0.01" value="0">
+        <span class="param-value" id="jfOscFmIndexValue">0.00</span>
+      </div>
+      
+      <div class="param-row">
+        <label>run</label>
+        <input type="range" id="jfOscRun" min="-1" max="1" step="0.01" value="0">
+        <span class="param-value" id="jfOscRunValue">0.00</span>
+      </div>
+
+      <div class="jfosc-triggers">
+        <h3 class="section-title">triggers</h3>
+        <div class="trigger-group">
+          <button class="jfosc-trigger-btn" data-index="0">1N</button>
+          <button class="jfosc-trigger-btn" data-index="1">2N</button>
+          <button class="jfosc-trigger-btn" data-index="2">3N</button>
+          <button class="jfosc-trigger-btn" data-index="3">4N</button>
+          <button class="jfosc-trigger-btn" data-index="4">5N</button>
+          <button class="jfosc-trigger-btn" data-index="5">6N</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANGROVE B PANEL -->
+    <div class="panel-section">
+      <h2 class="section-title">mangrove b (fm modulator)</h2>
+      
+      <div class="param-row">
+        <label>pitch</label>
+        <input type="range" id="mbPitch" min="0" max="1" step="0.01" value="0.52">
+        <span class="param-value" id="mbPitchValue">0.52</span>
+      </div>
+      
+      <div class="param-row">
+        <label>barrel</label>
+        <input type="range" id="mbBarrel" min="0" max="1" step="0.01" value="0.65">
+        <span class="param-value" id="mbBarrelValue">0.65</span>
+      </div>
+      
+      <div class="param-row">
+        <label>formant</label>
+        <input type="range" id="mbFormant" min="0" max="1" step="0.01" value="0.55">
+        <span class="param-value" id="mbFormantValue">0.55</span>
+      </div>
+    </div>
+
+    <!-- MANGROVE C PANEL -->
+    <div class="panel-section">
+      <h2 class="section-title">mangrove c (filter fm)</h2>
+      
+      <div class="param-row">
+        <label>pitch</label>
+        <input type="range" id="mcPitch" min="0" max="1" step="0.01" value="0.6">
+        <span class="param-value" id="mcPitchValue">0.60</span>
+      </div>
+      
+      <div class="param-row">
+        <label>barrel</label>
+        <input type="range" id="mcBarrel" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="mcBarrelValue">0.50</span>
+      </div>
+      
+      <div class="param-row">
+        <label>formant</label>
+        <input type="range" id="mcFormant" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="mcFormantValue">0.50</span>
+      </div>
+    </div>
+
+    <!-- THREE SISTERS PANEL -->
+    <div class="panel-section">
+      <h2 class="section-title">three sisters</h2>
+      
+      <div class="param-row">
+        <label>freq</label>
+        <input type="range" id="tsFreq" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="tsFreqValue">0.50</span>
+      </div>
+      
+      <div class="param-row">
+        <label>span</label>
+        <input type="range" id="tsSpan" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="tsSpanValue">0.50</span>
+      </div>
+      
+      <div class="param-row">
+        <label>quality</label>
+        <input type="range" id="tsQuality" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="tsQualityValue">0.50</span>
+      </div>
+      
+      <div class="param-row">
+        <label>fm atten</label>
+        <input type="range" id="tsFmAtten" min="0" max="1" step="0.01" value="0.5">
+        <span class="param-value" id="tsFmAttenValue">0.50</span>
+      </div>
+      
+      <div class="param-row">
+        <label>mode</label>
+        <select id="tsMode">
+          <option value="0">crossover</option>
+          <option value="1">formant</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- MODULATION MATRIX PANEL -->
+    <div class="panel-section mod-matrix-panel">
+      <h2 class="section-title">modulation matrix (jf #1 slopes)</h2>
+      
+      <div class="mod-matrix-hint">
+        <p><strong>Route JF #1 slopes (2N-6N) to any parameter.</strong></p>
+        <p>Each slope can modulate a different destination with independent depth, offset, and polarity control.</p>
+      </div>
+      
+      <div class="mod-slots-container" id="modSlotsContainer">
+        <!-- Modulation slots generated by JavaScript -->
+      </div>
+    </div>
 
     <!-- SCOPE 2 -->
     <div class="panel-section scope-panel">
