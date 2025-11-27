@@ -52,6 +52,10 @@ class Phase5App {
     
     this.isRunning = false;
 
+     // Create gain node to control JF #1 → quantizer connection
+     this.jf1ToQuantGain = this.audioContext.createGain();
+     this.jf1ToQuantGain.gain.value = 1.0; // Enabled in Normal m
+
     // Scope visualization
     this.scope1Analyser = null;
     this.scope1Canvas = null;
@@ -133,7 +137,10 @@ class Phase5App {
       
       // 2. JF #1 IDENTITY → Scope 1 → Quantizer pitch input
       this.jf1.getIdentityOutput().connect(this.scope1Analyser);
-      this.scope1Analyser.connect(this.quantizer.getInput());
+      // 3. JF #1 IDENTITY → Scope 1 → Gain → Quantizer pitch input
+      this.jf1.getIdentityOutput().connect(this.scope1Analyser);
+      this.scope1Analyser.connect(this.jf1ToQuantGain);
+      this.jf1ToQuantGain.connect(this.quantizer.getInput());
 
       // 3. Transpose Sequencer → Quantizer transpose parameter
       this.transposeSeq.getTransposeOutput().connect(this.transposeGain);
