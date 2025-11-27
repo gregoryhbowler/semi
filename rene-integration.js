@@ -1,4 +1,4 @@
-// rene-integration.js - COMPLETE with CV routing
+// rene-integration.js - FIXED with proper JF #1 disconnection
 // Integration code for René mode with proper pitch CV routing
 
 import { ReneSequencer } from './ReneSequencer.js';
@@ -123,8 +123,16 @@ export function toggleReneMode(app, enabled) {
  * Enable René signal routing
  */
 function enableReneRouting(app) {
-  // Enable René pitch CV routing
   const now = app.audioContext.currentTime;
+  
+  // CRITICAL: Disconnect JF #1 from quantizer
+  if (app.jf1ToQuantGain) {
+    app.jf1ToQuantGain.gain.cancelScheduledValues(now);
+    app.jf1ToQuantGain.gain.setValueAtTime(app.jf1ToQuantGain.gain.value, now);
+    app.jf1ToQuantGain.gain.linearRampToValueAtTime(0, now + 0.05);
+  }
+  
+  // Enable René pitch CV routing
   if (app.renePitchGain) {
     app.renePitchGain.gain.cancelScheduledValues(now);
     app.renePitchGain.gain.setValueAtTime(app.renePitchGain.gain.value, now);
@@ -144,15 +152,23 @@ function enableReneRouting(app) {
   app.jfOscGain.connect(envelopeVCA.getInput());
   envelopeVCA.getOutput().connect(app.threeSisters.getAudioInput());
   
-  console.log('✓ René routing enabled (CV + envelope)');
+  console.log('✓ René routing enabled (JF #1 disconnected, CV + envelope active)');
 }
 
 /**
  * Disable René signal routing
  */
 function disableReneRouting(app) {
-  // Disable René pitch CV routing
   const now = app.audioContext.currentTime;
+  
+  // Re-enable JF #1 to quantizer
+  if (app.jf1ToQuantGain) {
+    app.jf1ToQuantGain.gain.cancelScheduledValues(now);
+    app.jf1ToQuantGain.gain.setValueAtTime(app.jf1ToQuantGain.gain.value, now);
+    app.jf1ToQuantGain.gain.linearRampToValueAtTime(1.0, now + 0.05);
+  }
+  
+  // Disable René pitch CV routing
   if (app.renePitchGain) {
     app.renePitchGain.gain.cancelScheduledValues(now);
     app.renePitchGain.gain.setValueAtTime(app.renePitchGain.gain.value, now);
@@ -176,7 +192,7 @@ function disableReneRouting(app) {
   app.mangroveAGain.connect(app.threeSisters.getAudioInput());
   app.jfOscGain.connect(app.threeSisters.getAudioInput());
   
-  console.log('✓ Normal routing restored');
+  console.log('✓ Normal routing restored (JF #1 reconnected)');
 }
 
 /**
