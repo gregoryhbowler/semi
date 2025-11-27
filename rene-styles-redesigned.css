@@ -213,19 +213,20 @@
   overflow: hidden;
 }
 
-/* Knob indicator */
+/* Knob indicator - DOT on inside edge */
 .knob-indicator {
   position: absolute;
-  top: 8px;
+  top: 15px;  /* Distance from top edge */
   left: 50%;
-  width: 3px;
-  height: 20px;
+  width: 8px;
+  height: 8px;
   background: var(--text-primary);
-  border-radius: 2px;
-  transform-origin: center calc(100% + 27px);
+  border-radius: 50%;  /* Make it a circle */
+  transform-origin: 50% calc(35px - 15px);  /* Rotate around knob center (35px radius, 15px from top) */
   transform: translateX(-50%) rotate(0deg);
   transition: transform 0.1s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  pointer-events: none;  /* Ensure it doesn't interfere with input */
 }
 
 /* Value display below knob */
