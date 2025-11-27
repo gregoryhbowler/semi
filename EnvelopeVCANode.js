@@ -89,11 +89,7 @@ export class EnvelopeVCANode extends AudioWorkletNode {
    * @param {number} time - AudioContext time in seconds
    */
   triggerGateOn(time) {
-    this.port.postMessage({
-      type: 'gate',
-      time: time,
-      isOn: true
-    });
+    this._sendGateMessage({ isOn: true, time });
   }
 
   /**
@@ -101,11 +97,7 @@ export class EnvelopeVCANode extends AudioWorkletNode {
    * @param {number} time - AudioContext time in seconds
    */
   triggerGateOff(time) {
-    this.port.postMessage({
-      type: 'gate',
-      time: time,
-      isOn: false
-    });
+    this._sendGateMessage({ isOn: false, time });
   }
 
   /**
@@ -120,6 +112,24 @@ export class EnvelopeVCANode extends AudioWorkletNode {
    */
   release() {
     this.triggerGateOff(this.context.currentTime);
+  }
+
+  // Internal helper to schedule gate messages relative to AudioContext time
+  _sendGateMessage({ isOn, time }) {
+    const now = this.context.currentTime;
+    const delayMs = Math.max(0, (time - now) * 1000);
+
+    const message = {
+      type: 'gate',
+      time,
+      isOn
+    };
+
+    if (delayMs <= 1) {
+      this.port.postMessage(message);
+    } else {
+      setTimeout(() => this.port.postMessage(message), delayMs);
+    }
   }
 
   // ========== I/O ACCESSORS ==========

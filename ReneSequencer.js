@@ -51,6 +51,7 @@ export class ReneSequencer {
     this.gatePosition = 0;
     this.gateDivCounter = 0;
     this.currentGateState = false;
+    this.gatePulseWidth = 0.9; // 90% of the step length
     
     // Mod lane
     this.modValues = new Array(16).fill(0);
@@ -333,17 +334,25 @@ export class ReneSequencer {
     this.gateDivCounter++;
     if (this.gateDivCounter >= this.divisionMap[this.gateDiv]) {
       this.gateDivCounter = 0;
-      
+
       const stepIdx = pattern[this.gatePosition % 16];
       const shouldBeOn = this.steps[stepIdx].enabled && this.gateEnabled[stepIdx];
-      
-      if (shouldBeOn !== this.currentGateState) {
-        this.currentGateState = shouldBeOn;
-        if (this.onGate) {
-          this.onGate({ isOn: shouldBeOn, time, step: stepIdx });
+
+      if (this.onGate) {
+        if (shouldBeOn) {
+          // Always send a pulse per step so the envelope retriggers even on consecutive gates
+          this.onGate({ isOn: true, time, step: stepIdx });
+
+          const gateOffTime = time + (gatePeriod * this.gatePulseWidth);
+          this.onGate({ isOn: false, time: gateOffTime, step: stepIdx });
+          this.currentGateState = true;
+        } else if (this.currentGateState) {
+          // Ensure we release if a previously high gate turns off
+          this.onGate({ isOn: false, time, step: stepIdx });
+          this.currentGateState = false;
         }
       }
-      
+
       this.gatePosition = this.advancePosition(this.gatePosition, this.gateLength, this.playbackMode);
     }
     
