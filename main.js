@@ -91,6 +91,9 @@ this.isRunning = false;
       
       console.log('%c✓ All AudioWorklets loaded - Phase 5 + René Mode', 'color: green; font-weight: bold');
       
+      // Wait a bit to ensure all processors are fully registered
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       // Create module instances
       this.jf1 = new JustFriendsNode(this.audioContext);
       this.jfOsc = new JustFriendsOscNode(this.audioContext);
