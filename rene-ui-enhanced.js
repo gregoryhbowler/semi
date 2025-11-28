@@ -1,10 +1,8 @@
-// rene-ui-enhanced.js
-// Enhanced René UI with rotary knob interactions
+// rene-ui-enhanced-upgraded.js
+// UPGRADED: Enhanced René UI with rotary knobs (supports 4 mod lanes)
 
 /**
  * Update rotary knob visual rotation based on value
- * @param {HTMLElement} cell - The knob cell element
- * @param {number} value - Value from 0 to 1
  */
 export function updateKnobRotation(cell, value) {
   const indicator = cell.querySelector('.knob-indicator');
@@ -20,10 +18,6 @@ export function updateKnobRotation(cell, value) {
 
 /**
  * Create enhanced rotary knob cell structure
- * @param {number} index - Step index (0-15)
- * @param {string} lane - Lane type ('note' or 'mod')
- * @param {number} defaultValue - Default value (0-1)
- * @returns {HTMLElement} Knob cell element
  */
 export function createEnhancedKnobCell(index, lane, defaultValue) {
   const cell = document.createElement('div');
@@ -67,20 +61,16 @@ export function createEnhancedKnobCell(index, lane, defaultValue) {
   const handleMouseMove = (e) => {
     if (!isDragging) return;
     
-    // Calculate change based on vertical mouse movement
-    const deltaY = startY - e.clientY; // Inverted: up = increase
-    const sensitivity = 0.005; // Adjust this for faster/slower response
+    const deltaY = startY - e.clientY;
+    const sensitivity = 0.005;
     let newValue = startValue + (deltaY * sensitivity);
     
-    // Clamp to 0-1 range
     newValue = Math.max(0, Math.min(1, newValue));
     
-    // Update value
     cell.dataset.value = newValue;
     valueDisplay.textContent = newValue.toFixed(2);
     updateKnobRotation(cell, newValue);
     
-    // Trigger custom event for sequencer update
     const changeEvent = new CustomEvent('knobchange', {
       detail: { value: newValue, lane, step: index }
     });
@@ -135,7 +125,6 @@ export function createEnhancedKnobCell(index, lane, defaultValue) {
   knobRotary.addEventListener('touchmove', handleTouchMove, { passive: false });
   knobRotary.addEventListener('touchend', handleTouchEnd);
   
-  // Set initial cursor
   knobRotary.style.cursor = 'grab';
   
   return cell;
@@ -143,10 +132,6 @@ export function createEnhancedKnobCell(index, lane, defaultValue) {
 
 /**
  * Create enhanced gate toggle cell structure
- * @param {number} index - Step index (0-15)
- * @param {string} lane - Lane type (always 'gate')
- * @param {boolean} defaultValue - Default state
- * @returns {HTMLElement} Gate cell element
  */
 export function createEnhancedGateCell(index, lane, defaultValue) {
   const cell = document.createElement('div');
@@ -165,13 +150,11 @@ export function createEnhancedGateCell(index, lane, defaultValue) {
            ${defaultValue ? 'checked' : ''}>
   `;
   
-  // Make entire cell clickable
   cell.addEventListener('click', () => {
     const checkbox = cell.querySelector('.gate-checkbox');
     checkbox.checked = !checkbox.checked;
     cell.classList.toggle('active', checkbox.checked);
     
-    // Trigger change event for sequencer update
     checkbox.dispatchEvent(new Event('change', { bubbles: true }));
   });
   
@@ -180,7 +163,6 @@ export function createEnhancedGateCell(index, lane, defaultValue) {
 
 /**
  * Generate snake pattern options for dropdown
- * @returns {Array} Array of pattern options
  */
 export function getSnakePatternOptions() {
   return [
@@ -204,8 +186,7 @@ export function getSnakePatternOptions() {
 }
 
 /**
- * Initialize all enhanced UI elements
- * @param {ReneSequencer} reneSequencer - René sequencer instance
+ * UPGRADED: Initialize all enhanced UI elements (supports 4 mod lanes)
  */
 export function initializeEnhancedReneUI(reneSequencer) {
   // Generate note grid
@@ -216,7 +197,6 @@ export function initializeEnhancedReneUI(reneSequencer) {
       const cell = createEnhancedKnobCell(i, 'note', 0.5);
       noteGrid.appendChild(cell);
       
-      // Bind to sequencer using custom event
       cell.addEventListener('knobchange', (e) => {
         const { value } = e.detail;
         if (reneSequencer) {
@@ -236,7 +216,6 @@ export function initializeEnhancedReneUI(reneSequencer) {
       const cell = createEnhancedGateCell(i, 'gate', true);
       gateGrid.appendChild(cell);
       
-      // Bind to sequencer
       const checkbox = cell.querySelector('.gate-checkbox');
       checkbox.addEventListener('change', (e) => {
         const enabled = e.target.checked;
@@ -249,23 +228,24 @@ export function initializeEnhancedReneUI(reneSequencer) {
     }
   }
   
-  // Generate mod grid
-  const modGrid = document.getElementById('modGrid');
-  if (modGrid) {
-    modGrid.innerHTML = '';
-    for (let i = 0; i < 16; i++) {
-      const cell = createEnhancedKnobCell(i, 'mod', 0);
-      modGrid.appendChild(cell);
-      
-      // Bind to sequencer using custom event
-      cell.addEventListener('knobchange', (e) => {
-        const { value } = e.detail;
-        if (reneSequencer) {
-          const values = [...reneSequencer.modValues];
-          values[i] = value;
-          reneSequencer.setModValues(values);
-        }
-      });
+  // UPGRADED: Generate 4 mod grids
+  for (let laneIndex = 0; laneIndex < 4; laneIndex++) {
+    const modGrid = document.getElementById(`modGrid${laneIndex}`);
+    if (modGrid) {
+      modGrid.innerHTML = '';
+      for (let i = 0; i < 16; i++) {
+        const cell = createEnhancedKnobCell(i, `mod${laneIndex}`, 0);
+        modGrid.appendChild(cell);
+        
+        cell.addEventListener('knobchange', (e) => {
+          const { value } = e.detail;
+          if (reneSequencer) {
+            const values = [...reneSequencer.modValues[laneIndex]];
+            values[i] = value;
+            reneSequencer.setModValues(laneIndex, values);
+          }
+        });
+      }
     }
   }
   
@@ -288,13 +268,11 @@ export function initializeEnhancedReneUI(reneSequencer) {
     });
   }
   
-  console.log('✓ Enhanced René UI initialized');
+  console.log('✓ Enhanced René UI initialized (4 mod lanes)');
 }
 
 /**
  * Update current step highlight
- * @param {string} lane - Lane name ('note', 'gate', 'mod')
- * @param {number} step - Step index (0-15)
  */
 export function updateCurrentStepHighlight(lane, step) {
   // Remove previous highlights for this lane
