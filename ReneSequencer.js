@@ -1,13 +1,13 @@
 // ReneSequencer.js
 // René-inspired 16-step sequencer with snake patterns and independent lane timing
-// Each lane (note, gate, mod) has its own length and clock division
+// UPGRADED: Bug fix for lane lengths + 4 mod lanes with individual destinations
 
 export class ReneSequencer {
   constructor({
     audioContext,
     onNote,     // ({ value, time }) => void
     onGate,     // ({ isOn, time }) => void
-    onMod,      // ({ value, time }) => void
+    onMod,      // ({ laneIndex, value, time }) => void - NOW includes laneIndex
     onNoteCycle 
   }) {
     this.audioContext = audioContext;
@@ -55,14 +55,18 @@ export class ReneSequencer {
     this.currentGateState = false;
     this.gatePulseWidth = 0.9; // 90% of the step length
     
-    // Mod lane
-    this.modValues = new Array(16).fill(0);
-    this.modLength = 16;
-    this.modDiv = '1/4';
-    this.modPosition = 0;
-    this.modDivCounter = 0;
+    // UPGRADED: 4 Mod lanes
+    this.modValues = [
+      new Array(16).fill(0),
+      new Array(16).fill(0),
+      new Array(16).fill(0),
+      new Array(16).fill(0)
+    ];
+    this.modLengths = [16, 16, 16, 16];
+    this.modDivs = ['1/4', '1/4', '1/4', '1/4'];
+    this.modPositions = [0, 0, 0, 0];
+    this.modDivCounters = [0, 0, 0, 0];
     
-
     // Division multipliers relative to base clock (16th notes)
     this.divisionMap = {
       '1/16': 1,    // 1 sixteenth note
@@ -74,29 +78,29 @@ export class ReneSequencer {
       '2/2': 64     // 64 sixteenth notes (4 whole notes)
     };
     
-    console.log('✓ ReneSequencer initialized');
+    console.log('✓ ReneSequencer initialized (4 mod lanes)');
   }
   
   // ========== TEMPO & CLOCK ==========
   
   calculateBasePeriod(bpm) {
-  // Convert BPM to seconds per SIXTEENTH NOTE (smallest division)
-  const msPerQuarterNote = 60000 / bpm;
-  const msPerSixteenthNote = msPerQuarterNote / 4; // 4 sixteenth notes per quarter note
-  return msPerSixteenthNote / 1000;
-}
-  
-  setTempo(bpm) {
-  this.bpm = Math.max(10, Math.min(300, bpm));
-  this.basePeriod = this.calculateBasePeriod(this.bpm);
-  
-  // Snap next tick to current time to avoid drift
-  if (this.isRunning) {
-    this.nextTickTime = this.audioContext.currentTime;
+    // Convert BPM to seconds per SIXTEENTH NOTE (smallest division)
+    const msPerQuarterNote = 60000 / bpm;
+    const msPerSixteenthNote = msPerQuarterNote / 4; // 4 sixteenth notes per quarter note
+    return msPerSixteenthNote / 1000;
   }
   
-  console.log(`René tempo: ${this.bpm} BPM (${(this.basePeriod * 1000).toFixed(1)}ms per 16th note)`);
-}
+  setTempo(bpm) {
+    this.bpm = Math.max(10, Math.min(300, bpm));
+    this.basePeriod = this.calculateBasePeriod(this.bpm);
+    
+    // Snap next tick to current time to avoid drift
+    if (this.isRunning) {
+      this.nextTickTime = this.audioContext.currentTime;
+    }
+    
+    console.log(`René tempo: ${this.bpm} BPM (${(this.basePeriod * 1000).toFixed(1)}ms per 16th note)`);
+  }
   
   getTempo() {
     return this.bpm;
@@ -191,9 +195,10 @@ export class ReneSequencer {
     }
   }
   
-  setModValues(valuesArray) {
-    if (valuesArray.length === 16) {
-      this.modValues = [...valuesArray];
+  // UPGRADED: Set mod values for specific lane
+  setModValues(laneIndex, valuesArray) {
+    if (laneIndex >= 0 && laneIndex < 4 && valuesArray.length === 16) {
+      this.modValues[laneIndex] = [...valuesArray];
     }
   }
   
@@ -212,13 +217,17 @@ export class ReneSequencer {
     } else if (lane === 'gate') {
       if (length !== undefined) this.gateLength = Math.max(1, Math.min(16, length));
       if (division !== undefined) this.gateDiv = division;
-    } else if (lane === 'mod') {
-      if (length !== undefined) this.modLength = Math.max(1, Math.min(16, length));
-      if (division !== undefined) this.modDiv = division;
+    } else if (lane.startsWith('mod')) {
+      // Parse lane index: 'mod0', 'mod1', 'mod2', 'mod3'
+      const laneIndex = parseInt(lane.replace('mod', ''));
+      if (laneIndex >= 0 && laneIndex < 4) {
+        if (length !== undefined) this.modLengths[laneIndex] = Math.max(1, Math.min(16, length));
+        if (division !== undefined) this.modDivs[laneIndex] = division;
+      }
     }
   }
   
-  // ========== STEP ADVANCE LOGIC ==========
+  // ========== STEP ADVANCE LOGIC (BUG FIXED) ==========
   
   advancePosition(currentPos, length, mode) {
     const pattern = this.getSnakePattern();
@@ -227,7 +236,7 @@ export class ReneSequencer {
       // Pick random enabled step within length
       const validIndices = [];
       for (let i = 0; i < length; i++) {
-        const patternIdx = pattern[i % 16];
+        const patternIdx = pattern[i];  // FIX: only use indices 0 to length-1
         if (this.steps[patternIdx].enabled) {
           validIndices.push(i);
         }
@@ -243,7 +252,7 @@ export class ReneSequencer {
       
       // Skip disabled steps
       let attempts = 0;
-      while (!this.steps[pattern[nextPos % 16]].enabled && attempts < length) {
+      while (!this.steps[pattern[nextPos]].enabled && attempts < length) {  // FIX
         nextPos--;
         if (nextPos < 0) nextPos = length - 1;
         attempts++;
@@ -268,7 +277,7 @@ export class ReneSequencer {
       
       // Skip disabled steps
       let attempts = 0;
-      while (!this.steps[pattern[nextPos % 16]].enabled && attempts < length) {
+      while (!this.steps[pattern[nextPos]].enabled && attempts < length) {  // FIX
         nextPos += this.pingPongDirection;
         
         if (nextPos >= length) {
@@ -291,7 +300,7 @@ export class ReneSequencer {
     
     // Skip disabled steps
     let attempts = 0;
-    while (!this.steps[pattern[nextPos % 16]].enabled && attempts < length) {
+    while (!this.steps[pattern[nextPos]].enabled && attempts < length) {  // FIX
       nextPos = (nextPos + 1) % length;
       attempts++;
     }
@@ -313,44 +322,42 @@ export class ReneSequencer {
     }
   }
   
-processTick(time) {
-  const pattern = this.getSnakePattern();
-  
-  // Note lane
-  const notePeriod = this.basePeriod * this.divisionMap[this.noteDiv];
-  this.noteDivCounter++;
-  if (this.noteDivCounter >= this.divisionMap[this.noteDiv]) {
-    this.noteDivCounter = 0;
+  processTick(time) {
+    const pattern = this.getSnakePattern();
     
-    const stepIdx = pattern[this.notePosition % 16];
-    if (this.steps[stepIdx].enabled) {
-      const value = this.noteValues[stepIdx];
-      if (this.onNote) {
-        this.onNote({ value, time, step: stepIdx });
+    // Note lane
+    this.noteDivCounter++;
+    if (this.noteDivCounter >= this.divisionMap[this.noteDiv]) {
+      this.noteDivCounter = 0;
+      
+      const stepIdx = pattern[this.notePosition];
+      if (this.steps[stepIdx].enabled) {
+        const value = this.noteValues[stepIdx];
+        if (this.onNote) {
+          this.onNote({ value, time, step: stepIdx });
+        }
+      }
+      
+      // Store position before advancing
+      const oldPosition = this.notePosition;
+      
+      // Advance to next position
+      this.notePosition = this.advancePosition(this.notePosition, this.noteLength, this.playbackMode);
+      
+      // Detect when we've wrapped back to position 0 (cycle complete)
+      if (this.notePosition === 0 && oldPosition !== 0) {
+        if (this.onNoteCycle) {
+          this.onNoteCycle({ time });
+        }
       }
     }
-    
-    // NEW: Store position before advancing
-    const oldPosition = this.notePosition;
-    
-    // Advance to next position (EXISTING CODE)
-    this.notePosition = this.advancePosition(this.notePosition, this.noteLength, this.playbackMode);
-    
-    // NEW: Detect when we've wrapped back to position 0 (cycle complete)
-    if (this.notePosition === 0 && oldPosition !== 0) {
-      if (this.onNoteCycle) {
-        this.onNoteCycle({ time });
-      }
-    }
-  }
     
     // Gate lane
-    const gatePeriod = this.basePeriod * this.divisionMap[this.gateDiv];
     this.gateDivCounter++;
     if (this.gateDivCounter >= this.divisionMap[this.gateDiv]) {
       this.gateDivCounter = 0;
 
-      const stepIdx = pattern[this.gatePosition % 16];
+      const stepIdx = pattern[this.gatePosition];
       const shouldBeOn = this.steps[stepIdx].enabled && this.gateEnabled[stepIdx];
 
       if (this.onGate) {
@@ -358,6 +365,7 @@ processTick(time) {
           // Always send a pulse per step so the envelope retriggers even on consecutive gates
           this.onGate({ isOn: true, time, step: stepIdx });
 
+          const gatePeriod = this.basePeriod * this.divisionMap[this.gateDiv];
           const gateOffTime = time + (gatePeriod * this.gatePulseWidth);
           this.onGate({ isOn: false, time: gateOffTime, step: stepIdx });
           this.currentGateState = true;
@@ -371,21 +379,26 @@ processTick(time) {
       this.gatePosition = this.advancePosition(this.gatePosition, this.gateLength, this.playbackMode);
     }
     
-    // Mod lane
-    const modPeriod = this.basePeriod * this.divisionMap[this.modDiv];
-    this.modDivCounter++;
-    if (this.modDivCounter >= this.divisionMap[this.modDiv]) {
-      this.modDivCounter = 0;
-      
-      const stepIdx = pattern[this.modPosition % 16];
-      if (this.steps[stepIdx].enabled) {
-        const value = this.modValues[stepIdx];
-        if (this.onMod) {
-          this.onMod({ value, time, step: stepIdx });
+    // UPGRADED: 4 Mod lanes
+    for (let laneIndex = 0; laneIndex < 4; laneIndex++) {
+      this.modDivCounters[laneIndex]++;
+      if (this.modDivCounters[laneIndex] >= this.divisionMap[this.modDivs[laneIndex]]) {
+        this.modDivCounters[laneIndex] = 0;
+        
+        const stepIdx = pattern[this.modPositions[laneIndex]];
+        if (this.steps[stepIdx].enabled) {
+          const value = this.modValues[laneIndex][stepIdx];
+          if (this.onMod) {
+            this.onMod({ laneIndex, value, time, step: stepIdx });
+          }
         }
+        
+        this.modPositions[laneIndex] = this.advancePosition(
+          this.modPositions[laneIndex], 
+          this.modLengths[laneIndex], 
+          this.playbackMode
+        );
       }
-      
-      this.modPosition = this.advancePosition(this.modPosition, this.modLength, this.playbackMode);
     }
   }
   
@@ -419,10 +432,10 @@ processTick(time) {
   reset() {
     this.notePosition = 0;
     this.gatePosition = 0;
-    this.modPosition = 0;
+    this.modPositions = [0, 0, 0, 0];
     this.noteDivCounter = 0;
     this.gateDivCounter = 0;
-    this.modDivCounter = 0;
+    this.modDivCounters = [0, 0, 0, 0];
     this.pingPongDirection = 1;
     
     // Send gate off
@@ -439,9 +452,50 @@ processTick(time) {
   getCurrentSteps() {
     const pattern = this.getSnakePattern();
     return {
-      note: pattern[this.notePosition % 16],
-      gate: pattern[this.gatePosition % 16],
-      mod: pattern[this.modPosition % 16]
+      note: pattern[this.notePosition],
+      gate: pattern[this.gatePosition],
+      mod0: pattern[this.modPositions[0]],
+      mod1: pattern[this.modPositions[1]],
+      mod2: pattern[this.modPositions[2]],
+      mod3: pattern[this.modPositions[3]]
     };
+  }
+  
+  // ========== PATTERN SYSTEM SUPPORT ==========
+  
+  getState() {
+    return {
+      noteValues: [...this.noteValues],
+      gateEnabled: [...this.gateEnabled],
+      modValues: this.modValues.map(arr => [...arr]),
+      noteLength: this.noteLength,
+      gateLength: this.gateLength,
+      modLengths: [...this.modLengths],
+      noteDiv: this.noteDiv,
+      gateDiv: this.gateDiv,
+      modDivs: [...this.modDivs],
+      snakePattern: this.currentSnakeIndex,
+      playbackMode: this.playbackMode,
+      stepEnabled: this.steps.map(s => s.enabled),
+      tempo: this.bpm
+    };
+  }
+  
+  setState(state) {
+    if (state.noteValues) this.noteValues = [...state.noteValues];
+    if (state.gateEnabled) this.gateEnabled = [...state.gateEnabled];
+    if (state.modValues) this.modValues = state.modValues.map(arr => [...arr]);
+    if (state.noteLength !== undefined) this.noteLength = state.noteLength;
+    if (state.gateLength !== undefined) this.gateLength = state.gateLength;
+    if (state.modLengths) this.modLengths = [...state.modLengths];
+    if (state.noteDiv) this.noteDiv = state.noteDiv;
+    if (state.gateDiv) this.gateDiv = state.gateDiv;
+    if (state.modDivs) this.modDivs = [...state.modDivs];
+    if (state.snakePattern !== undefined) this.setSnakePattern(state.snakePattern);
+    if (state.playbackMode) this.setPlaybackMode(state.playbackMode);
+    if (state.stepEnabled) this.setStepEnabled(state.stepEnabled);
+    if (state.tempo !== undefined) this.setTempo(state.tempo);
+    
+    console.log('✓ René state restored from pattern');
   }
 }
