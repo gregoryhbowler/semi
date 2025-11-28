@@ -106,11 +106,15 @@ function initPatternSystemUI(app) {
   const patternGrid = document.getElementById('patternGrid');
   if (!patternGrid) return;
   
+  // Track selected pattern (for Set/Copy/Paste operations)
+  let selectedPatternIndex = 0;
+  
   // Generate 8 pattern slots
   patternGrid.innerHTML = '';
   for (let i = 0; i < 8; i++) {
     const slot = document.createElement('div');
     slot.className = 'pattern-slot empty';
+    if (i === 0) slot.classList.add('selected'); // First slot selected by default
     slot.dataset.index = i;
     
     slot.innerHTML = `
@@ -128,19 +132,28 @@ function initPatternSystemUI(app) {
     
     patternGrid.appendChild(slot);
     
-    // Click to recall pattern
+    // SINGLE CLICK: Select pattern (for Set/Copy/Paste operations)
     slot.addEventListener('click', (e) => {
+      if (e.target.classList.contains('pattern-repeats-input')) return;
+      
+      // Remove selected class from all slots
+      document.querySelectorAll('.pattern-slot').forEach(s => s.classList.remove('selected'));
+      
+      // Add selected class to clicked slot
+      slot.classList.add('selected');
+      selectedPatternIndex = i;
+      
+      console.log(`Pattern ${i + 1} selected`);
+    });
+    
+    // DOUBLE CLICK: Recall pattern (load into René)
+    slot.addEventListener('dblclick', (e) => {
       if (e.target.classList.contains('pattern-repeats-input')) return;
       if (renePatternSystem && !renePatternSystem.isPatternEmpty(i)) {
         renePatternSystem.recallPattern(i);
         updatePatternUI();
+        console.log(`Pattern ${i + 1} recalled`);
       }
-    });
-    
-    // Right-click for context menu (optional future enhancement)
-    slot.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      // Could show context menu with Set/Copy/Paste/Delete options
     });
   }
   
@@ -155,27 +168,38 @@ function initPatternSystemUI(app) {
     });
   });
   
-  // Bind control buttons
+  // Helper to get selected pattern index
+  function getSelectedPatternIndex() {
+    const selectedSlot = document.querySelector('.pattern-slot.selected');
+    return selectedSlot ? parseInt(selectedSlot.dataset.index) : 0;
+  }
+  
+  // Bind control buttons - USE SELECTED PATTERN
   document.getElementById('patternSetBtn')?.addEventListener('click', () => {
-    const currentIndex = renePatternSystem?.getCurrentPatternIndex() || 0;
+    const selectedIndex = getSelectedPatternIndex();
     if (renePatternSystem) {
-      renePatternSystem.setPattern(currentIndex);
+      renePatternSystem.setPattern(selectedIndex);
       updatePatternUI();
+      console.log(`✓ Current state saved to Pattern ${selectedIndex + 1}`);
     }
   });
   
   document.getElementById('patternCopyBtn')?.addEventListener('click', () => {
-    const currentIndex = renePatternSystem?.getCurrentPatternIndex() || 0;
+    const selectedIndex = getSelectedPatternIndex();
     if (renePatternSystem) {
-      renePatternSystem.copyPattern(currentIndex);
+      if (renePatternSystem.copyPattern(selectedIndex)) {
+        console.log(`✓ Pattern ${selectedIndex + 1} copied to clipboard`);
+      }
     }
   });
   
   document.getElementById('patternPasteBtn')?.addEventListener('click', () => {
-    const currentIndex = renePatternSystem?.getCurrentPatternIndex() || 0;
+    const selectedIndex = getSelectedPatternIndex();
     if (renePatternSystem) {
-      renePatternSystem.pastePattern(currentIndex);
-      updatePatternUI();
+      if (renePatternSystem.pastePattern(selectedIndex)) {
+        updatePatternUI();
+        console.log(`✓ Clipboard pasted to Pattern ${selectedIndex + 1}`);
+      }
     }
   });
   
