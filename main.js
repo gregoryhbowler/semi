@@ -8,7 +8,7 @@ import { TransposeSequencerNode } from './TransposeSequencerNode.js';
 import { MangroveNode } from './MangroveNode.js';
 import { ThreeSistersNode } from './ThreeSistersNode.js';
 import { ModulationMatrixNode } from './outputs/ModulationMatrixNode.js';
-import { LFONode } from './outputs/LFONode.js';
+import { LFONode } from './LFONode.js';
 import { EnvelopeVCANode } from './EnvelopeVCANode.js';
 import { initReneMode, toggleReneMode } from './rene-integration-redesigned.js';
 
