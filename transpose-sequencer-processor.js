@@ -1,7 +1,8 @@
 // transpose-sequencer-processor.js
 // Transpose Sequencer - AudioWorklet Processor
-// Detects zero crossings from Just Friends #1 IDENTITY output as clock
-// Advances through a 16-step sequence and outputs transpose offsets
+// SUPPORTS TWO CLOCK SOURCES:
+// 1. Just Friends #1 IDENTITY (zero crossing detection)
+// 2. External trigger (e.g., René note cycle completion)
 
 class TransposeSequencerProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -21,7 +22,10 @@ class TransposeSequencerProcessor extends AudioWorkletProcessor {
     this.direction = 1; // 1 for forward, -1 for backward (pingpong)
     this.currentTranspose = 0;
     
-    // Clock detection
+    // Clock source: 'jf' (Just Friends) or 'rene' (external trigger)
+    this.clockSource = 'jf';
+    
+    // Clock detection (for JF mode)
     this.prevSample = 0;
     this.clockThreshold = 0.1; // Threshold for zero crossing detection
     
@@ -34,6 +38,13 @@ class TransposeSequencerProcessor extends AudioWorkletProcessor {
         this.updateCurrentTranspose();
       } else if (type === 'playback-mode') {
         this.playbackMode = event.data.mode;
+      } else if (type === 'clock-source') {
+        // NEW: Set clock source mode
+        this.clockSource = event.data.source;
+        console.log(`[Transpose Seq] Clock source: ${this.clockSource.toUpperCase()}`);
+      } else if (type === 'external-trigger') {
+        // NEW: External trigger from René or other source
+        this.advanceSequence();
       } else if (type === 'reset') {
         this.reset();
       }
@@ -192,6 +203,18 @@ class TransposeSequencerProcessor extends AudioWorkletProcessor {
     const input = inputs[0];
     const output = outputs[0];
     
+    // In René mode, ignore JF clock input
+    if (this.clockSource === 'rene') {
+      // Output current transpose value (for monitoring)
+      if (output && output[0]) {
+        for (let i = 0; i < 128; i++) {
+          output[0][i] = this.currentTranspose / 12.0;
+        }
+      }
+      return true;
+    }
+    
+    // JF clock mode - process input
     if (!input || !input[0]) {
       return true;
     }
@@ -218,6 +241,7 @@ class TransposeSequencerProcessor extends AudioWorkletProcessor {
     if (this.sampleCount % this.debugInterval === 0) {
       const activeCells = this.cells.filter(c => c.active).length;
       console.log('[Transpose Sequencer]', {
+        clockSource: this.clockSource,
         step: this.currentStep,
         repeat: `${this.currentRepeat}/${this.cells[this.currentStep].repeats}`,
         transpose: this.currentTranspose,

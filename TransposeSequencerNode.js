@@ -1,7 +1,9 @@
 // TransposeSequencerNode.js
 // Wrapper for Transpose Sequencer AudioWorkletProcessor
-// Uses Just Friends #1 IDENTITY output as a clock source
-// Outputs semitone transpose offsets synchronized to JF cycles
+// UPDATED: Supports both JF and René clock sources
+// Uses Just Friends #1 IDENTITY output as a clock source (default)
+// OR can be triggered externally by René note sequence cycles
+// Outputs semitone transpose offsets synchronized to clock cycles
 
 export class TransposeSequencerNode extends AudioWorkletNode {
   constructor(context) {
@@ -17,7 +19,7 @@ export class TransposeSequencerNode extends AudioWorkletNode {
     // Sequence data: 16 cells
     this.cells = Array.from({ length: 16 }, () => ({
       transpose: 0,    // -24 to +24 semitones
-      repeats: 1,      // How many JF cycles before advancing
+      repeats: 1,      // How many clock cycles before advancing
       active: false    // Whether this cell is enabled
     }));
     
@@ -25,6 +27,9 @@ export class TransposeSequencerNode extends AudioWorkletNode {
     this.playbackMode = 'forward'; // 'forward', 'backward', 'pingpong', 'random'
     this.currentStep = 0;
     this.currentTranspose = 0;
+    
+    // NEW: Clock source mode
+    this.clockSource = 'jf'; // 'jf' or 'rene'
     
     // Create I/O nodes
     this.clockInput = context.createGain();
@@ -175,6 +180,47 @@ export class TransposeSequencerNode extends AudioWorkletNode {
    */
   getCurrentTranspose() {
     return this.currentTranspose;
+  }
+
+  // ========== NEW: CLOCK SOURCE CONTROL ==========
+
+  /**
+   * Set clock source mode
+   * @param {string} source - 'jf' (Just Friends) or 'rene' (external trigger)
+   */
+  setClockSource(source) {
+    if (source !== 'jf' && source !== 'rene') {
+      console.error('Clock source must be "jf" or "rene"');
+      return;
+    }
+    
+    this.clockSource = source;
+    this.port.postMessage({
+      type: 'clock-source',
+      source: source
+    });
+    
+    console.log(`✓ Transpose sequencer clock: ${source === 'jf' ? 'Just Friends' : 'René cycles'}`);
+  }
+
+  /**
+   * Get current clock source
+   */
+  getClockSource() {
+    return this.clockSource;
+  }
+
+  /**
+   * Manually trigger advancement (for René mode)
+   * This should be called once per René note sequence cycle
+   */
+  trigger() {
+    if (this.clockSource !== 'rene') {
+      console.warn('trigger() only works in René clock mode');
+      return;
+    }
+    
+    this.port.postMessage({ type: 'external-trigger' });
   }
 
   // ========== INTERNAL ==========

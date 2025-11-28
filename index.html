@@ -428,6 +428,23 @@
           <button class="playback-mode-btn" data-mode="random">✳</button>
         </div>
       </div>
+
+    <div class="clock-source-section">
+      <div class="control-group-title">clock source</div>
+        <div class="clock-source-control">
+          <select id="transposeClockSource" class="control-select clock-select">
+            <option value="jf">Just Friends (zero crossings)</option>
+            <option value="rene">René (note sequence cycles)</option>
+          </select>
+        <div class="clock-indicator jf" id="clockSourceIndicator">
+          Clocked by Just Friends
+        </div>
+        <p class="clock-description">
+          <strong>Just Friends:</strong> Advances on each JF #1 slope cycle<br>
+          <strong>René:</strong> Advances when René completes a full note sequence
+        </p>
+      </div>
+    </div>
       
       <div id="sequencerGrid"></div>
       

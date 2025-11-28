@@ -62,7 +62,17 @@ export async function initReneMode(app) {
       }
       
       updateCurrentStepHighlight('mod', step);
+    },
+
+    // NEW: Add note cycle callback
+    onNoteCycle: ({ time }) => {
+    // When René completes a note sequence cycle, trigger transpose sequencer
+    // BUT ONLY if transpose sequencer is in René clock mode
+    if (app.transposeSeq && app.transposeSeq.getClockSource() === 'rene') {
+      app.transposeSeq.trigger();
+      console.log('🔄 René cycle → Transpose sequencer advanced');
     }
+  }
   });
   
   // Initialize enhanced UI
@@ -315,6 +325,31 @@ function bindReneControls(app) {
       }
     });
   });
+
+    // NEW: Clock source toggle for transpose sequencer
+  const clockSourceToggle = document.getElementById('transposeClockSource');
+  if (clockSourceToggle) {
+    // Set initial state based on app.transposeSeq
+    if (app.transposeSeq) {
+      const currentSource = app.transposeSeq.getClockSource();
+      clockSourceToggle.value = currentSource;
+    }
+    
+    clockSourceToggle.addEventListener('change', (e) => {
+      const source = e.target.value;
+      
+      if (app.transposeSeq) {
+        app.transposeSeq.setClockSource(source);
+        
+        // Update UI feedback
+        const indicator = document.getElementById('clockSourceIndicator');
+        if (indicator) {
+          indicator.textContent = source === 'jf' ? 'Clocked by Just Friends' : 'Clocked by René cycles';
+          indicator.className = `clock-indicator ${source}`;
+        }
+      }
+    });
+  }
   
   // Envelope controls
   bindEnvelopeControls();
