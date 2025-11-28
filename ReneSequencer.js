@@ -8,11 +8,13 @@ export class ReneSequencer {
     onNote,     // ({ value, time }) => void
     onGate,     // ({ isOn, time }) => void
     onMod,      // ({ value, time }) => void
+    onNoteCycle 
   }) {
     this.audioContext = audioContext;
     this.onNote = onNote;
     this.onGate = onGate;
     this.onMod = onMod;
+    this.onNoteCycle = onNoteCycle;
     
     // René's own tempo (BPM)
     this.bpm = 120;
@@ -311,25 +313,36 @@ export class ReneSequencer {
     }
   }
   
-  processTick(time) {
-    const pattern = this.getSnakePattern();
+processTick(time) {
+  const pattern = this.getSnakePattern();
+  
+  // Note lane
+  const notePeriod = this.basePeriod * this.divisionMap[this.noteDiv];
+  this.noteDivCounter++;
+  if (this.noteDivCounter >= this.divisionMap[this.noteDiv]) {
+    this.noteDivCounter = 0;
     
-    // Note lane
-    const notePeriod = this.basePeriod * this.divisionMap[this.noteDiv];
-    this.noteDivCounter++;
-    if (this.noteDivCounter >= this.divisionMap[this.noteDiv]) {
-      this.noteDivCounter = 0;
-      
-      const stepIdx = pattern[this.notePosition % 16];
-      if (this.steps[stepIdx].enabled) {
-        const value = this.noteValues[stepIdx];
-        if (this.onNote) {
-          this.onNote({ value, time, step: stepIdx });
-        }
+    const stepIdx = pattern[this.notePosition % 16];
+    if (this.steps[stepIdx].enabled) {
+      const value = this.noteValues[stepIdx];
+      if (this.onNote) {
+        this.onNote({ value, time, step: stepIdx });
       }
-      
-      this.notePosition = this.advancePosition(this.notePosition, this.noteLength, this.playbackMode);
     }
+    
+    // NEW: Store position before advancing
+    const oldPosition = this.notePosition;
+    
+    // Advance to next position (EXISTING CODE)
+    this.notePosition = this.advancePosition(this.notePosition, this.noteLength, this.playbackMode);
+    
+    // NEW: Detect when we've wrapped back to position 0 (cycle complete)
+    if (this.notePosition === 0 && oldPosition !== 0) {
+      if (this.onNoteCycle) {
+        this.onNoteCycle({ time });
+      }
+    }
+  }
     
     // Gate lane
     const gatePeriod = this.basePeriod * this.divisionMap[this.gateDiv];
