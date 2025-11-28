@@ -1,5 +1,5 @@
-// main.js - Phase 5 + René Mode Integration
-// Complete version with René CV routing
+// main.js - Phase 5 + René Mode Integration + 7 LFOs
+// UPDATED: Includes 7 LFOs with dual destinations and comprehensive modulation routing
 
 import { JustFriendsNode } from './JustFriendsNode.js';
 import { JustFriendsOscNode } from './JustFriendsOscNode.js';
@@ -8,6 +8,8 @@ import { TransposeSequencerNode } from './TransposeSequencerNode.js';
 import { MangroveNode } from './MangroveNode.js';
 import { ThreeSistersNode } from './ThreeSistersNode.js';
 import { ModulationMatrixNode } from './outputs/ModulationMatrixNode.js';
+import { LFONode } from './outputs/LFONode.js';
+import { EnvelopeVCANode } from './EnvelopeVCANode.js';
 import { initReneMode, toggleReneMode } from './rene-integration-redesigned.js';
 
 class Phase5App {
@@ -18,12 +20,16 @@ class Phase5App {
     this.jf1 = null;
     this.transposeSeq = null;
     this.quantizer = null;
+    this.envelopeVCA = null;
     this.mangroveA = null;
     this.mangroveB = null;
     this.mangroveC = null;
     this.jfOsc = null;
     this.threeSisters = null;
     this.masterGain = null;
+    
+    // LFO array (7 LFOs)
+    this.lfos = [];
     
     // Modulation matrix
     this.modMatrix = null;
@@ -50,16 +56,10 @@ class Phase5App {
     this.renePitchGain = null;
     this.renePitchSource = null;
     
+    // JF #1 to quantizer routing
+    this.jf1ToQuantGain = null;
+    
     this.isRunning = false;
-
-     // René CV routing node
-this.renePitchGain = null;
-this.renePitchSource = null;
-
-// JF #1 to quantizer routing
-this.jf1ToQuantGain = null;
-
-this.isRunning = false;
 
     // Scope visualization
     this.scope1Analyser = null;
@@ -88,10 +88,10 @@ this.isRunning = false;
       await this.audioContext.audioWorklet.addModule('./three-sisters-processor.js');
       await this.audioContext.audioWorklet.addModule('./modulation-matrix-processor.js');
       await this.audioContext.audioWorklet.addModule('./envelope-processor.js');
+      await this.audioContext.audioWorklet.addModule('./lfo-processor.js');
       
-      console.log('%c✓ All AudioWorklets loaded - Phase 5 + René Mode', 'color: green; font-weight: bold');
+      console.log('%c✓ All AudioWorklets loaded - Phase 5 + LFOs', 'color: green; font-weight: bold');
       
-      // Wait a bit to ensure all processors are fully registered
       await new Promise(resolve => setTimeout(resolve, 200));
 
       // Create module instances
@@ -100,10 +100,16 @@ this.isRunning = false;
       await new Promise(resolve => setTimeout(resolve, 10));
       this.transposeSeq = new TransposeSequencerNode(this.audioContext);
       this.quantizer = new QuantizerNode(this.audioContext);
+      this.envelopeVCA = new EnvelopeVCANode(this.audioContext);
       
-      // Create JF #1 → quantizer gain control
+      // Create 7 LFOs
+      for (let i = 0; i < 7; i++) {
+        this.lfos.push(new LFONode(this.audioContext, i));
+      }
+      console.log('✓ 7 LFOs created');
+      
       this.jf1ToQuantGain = this.audioContext.createGain();
-      this.jf1ToQuantGain.gain.value = 1.0; // Enabled in Normal mode
+      this.jf1ToQuantGain.gain.value = 1.0;
       
       this.mangroveA = new MangroveNode(this.audioContext);
       this.mangroveB = new MangroveNode(this.audioContext);
@@ -113,13 +119,11 @@ this.isRunning = false;
       this.masterGain = this.audioContext.createGain();
       this.masterGain.gain.value = 0.3;
 
-      // Create crossfade gains
       this.mangroveAGain = this.audioContext.createGain();
       this.mangroveAGain.gain.value = 1.0;
       this.jfOscGain = this.audioContext.createGain();
       this.jfOscGain.gain.value = 0.0;
 
-      // Create FM routing gains
       this.fmGainB = this.audioContext.createGain();
       this.fmGainB.gain.value = 0.0;
       this.fmExpGain = this.audioContext.createGain();
@@ -127,15 +131,12 @@ this.isRunning = false;
       this.fmLinGain = this.audioContext.createGain();
       this.fmLinGain.gain.value = 1.0;
 
-      // Create transpose gain for sequencer → quantizer
       this.transposeGain = this.audioContext.createGain();
       this.transposeGain.gain.value = 12.0;
 
-      // Create René pitch CV routing
       this.renePitchGain = this.audioContext.createGain();
-      this.renePitchGain.gain.value = 0; // Start disabled (Normal mode)
+      this.renePitchGain.gain.value = 0;
       
-      // Create a constant source for René pitch modulation
       this.renePitchSource = this.audioContext.createConstantSource();
       this.renePitchSource.offset.value = 0;
       this.renePitchSource.start();
@@ -145,29 +146,21 @@ this.isRunning = false;
 
       // ========== SIGNAL ROUTING ==========
       
-      // 1. JF #1 IDENTITY → Transpose Sequencer clock input
+      // Existing routing (unchanged)
       this.jf1.getIdentityOutput().connect(this.transposeSeq.getClockInput());
-      
-      // 2. JF #1 IDENTITY → Scope 1 → Quantizer pitch input
-      this.jf1.getIdentityOutput().connect(this.scope1Analyser);
-      // 3. JF #1 IDENTITY → Scope 1 → Gain → Quantizer pitch input
       this.jf1.getIdentityOutput().connect(this.scope1Analyser);
       this.scope1Analyser.connect(this.jf1ToQuantGain);
       this.jf1ToQuantGain.connect(this.quantizer.getInput());
 
-      // 3. Transpose Sequencer → Quantizer transpose parameter
       this.transposeSeq.getTransposeOutput().connect(this.transposeGain);
       this.transposeGain.connect(this.quantizer.params.transpose);
 
-      // 4. René pitch CV routing → Quantizer input
       this.renePitchSource.connect(this.renePitchGain);
       this.renePitchGain.connect(this.quantizer.getInput());
 
-      // 5. Quantizer → Both Mangrove A and JF Osc
       this.quantizer.getOutput().connect(this.mangroveA.getPitchCVInput());
       this.quantizer.getOutput().connect(this.jfOsc.getTimeCVInput());
 
-      // 6. Mangrove B FORMANT → FM routing
       this.mangroveB.getFormantOutput().connect(this.fmGainB);
       this.fmGainB.connect(this.fmExpGain);
       this.fmExpGain.connect(this.mangroveA.getPitchCVInput());
@@ -176,21 +169,17 @@ this.isRunning = false;
       this.fmLinGain.connect(this.mangroveA.getFMInput());
       this.fmLinGain.connect(this.jfOsc.getFMInput());
 
-      // 7. Oscillator outputs → Crossfade → Three Sisters
       this.mangroveA.getFormantOutput().connect(this.mangroveAGain);
       this.jfOsc.getMixOutput().connect(this.jfOscGain);
       this.mangroveAGain.connect(this.threeSisters.getAudioInput());
       this.jfOscGain.connect(this.threeSisters.getAudioInput());
 
-      // 8. Mangrove C FORMANT → Three Sisters FM input
       this.mangroveC.getFormantOutput().connect(this.threeSisters.getFMInput());
 
-      // 9. Three Sisters ALL output → Scope 2 → Master → Output
       this.threeSisters.getAllOutput().connect(this.scope2Analyser);
       this.scope2Analyser.connect(this.masterGain);
       this.masterGain.connect(this.audioContext.destination);
       
-      // 10. JF slopes 2N-6N → Modulation Matrix
       this.jfMerger = this.audioContext.createChannelMerger(5);
       this.jf1.get2NOutput().connect(this.jfMerger, 0, 0);
       this.jf1.get3NOutput().connect(this.jfMerger, 0, 1);
@@ -199,18 +188,16 @@ this.isRunning = false;
       this.jf1.get6NOutput().connect(this.jfMerger, 0, 4);
       this.jfMerger.connect(this.modMatrix.getInput());
       
-      console.log('=== Phase 5 + René Mode ===');
+      console.log('=== Phase 5 + LFOs ===');
       console.log('Signal routing complete');
       
-      // Build destination map for modulation matrix
+      // Build comprehensive destination map
       this.buildDestinationMap();
       
       this.configureDefaults();
       
-      // Initialize René mode
       await initReneMode(this);
       
-      // Listen for step changes from transpose sequencer
       this.transposeSeq.addEventListener('step-changed', (e) => {
         this.updateSequencerUI(e.detail.step, e.detail.transpose);
       });
@@ -220,7 +207,7 @@ this.isRunning = false;
       
       this.syncUIWithParameters();
       
-      console.log('%c✓ Phase 5 + René Mode initialized!', 'color: green; font-weight: bold');
+      console.log('%c✓ Phase 5 + LFOs initialized!', 'color: green; font-weight: bold');
       
     } catch (error) {
       console.error('Failed to initialize:', error);
@@ -229,16 +216,24 @@ this.isRunning = false;
   }
 
   buildDestinationMap() {
+    // COMPREHENSIVE destination map - every parameter with a UI control
     this.destinationMap = {
-      // Just Friends #1 (LFO)
+      // Just Friends #1 (LFO/Clock)
       'jf1.time': this.jf1.params.time,
       'jf1.intone': this.jf1.params.intone,
       'jf1.ramp': this.jf1.params.ramp,
       'jf1.curve': this.jf1.params.curve,
+      'jf1.fmDepth': this.jf1.params.fmDepth,
       
       // Quantizer
       'quant.depth': this.quantizer.params.depth,
       'quant.offset': this.quantizer.params.offset,
+      'quant.transpose': this.quantizer.params.transpose,
+      
+      // Envelope/VCA
+      'env.attack': this.envelopeVCA.params.attack,
+      'env.decay': this.envelopeVCA.params.decay,
+      'env.sustain': this.envelopeVCA.params.sustain,
       
       // Mangrove A
       'ma.pitch': this.mangroveA.params.pitchKnob,
@@ -246,16 +241,21 @@ this.isRunning = false;
       'ma.formant': this.mangroveA.params.formantKnob,
       'ma.air': this.mangroveA.params.airKnob,
       'ma.fmIndex': this.mangroveA.params.fmIndex,
+      'ma.airAtten': this.mangroveA.params.airAttenuverter,
       
       // Mangrove B
       'mb.pitch': this.mangroveB.params.pitchKnob,
       'mb.barrel': this.mangroveB.params.barrelKnob,
       'mb.formant': this.mangroveB.params.formantKnob,
+      'mb.air': this.mangroveB.params.airKnob,
+      'mb.fmIndex': this.mangroveB.params.fmIndex,
       
       // Mangrove C
       'mc.pitch': this.mangroveC.params.pitchKnob,
       'mc.barrel': this.mangroveC.params.barrelKnob,
       'mc.formant': this.mangroveC.params.formantKnob,
+      'mc.air': this.mangroveC.params.airKnob,
+      'mc.fmIndex': this.mangroveC.params.fmIndex,
       
       // Just Friends Osc
       'jfosc.time': this.jfOsc.params.time,
@@ -275,11 +275,18 @@ this.isRunning = false;
       'master.volume': this.masterGain.gain
     };
     
-    console.log('✓ Destination map built - 33 parameters available');
+    // Add LFO parameters to destination map
+    this.lfos.forEach((lfo, i) => {
+      this.destinationMap[`lfo${i + 1}.rate`] = lfo.params.rate;
+      this.destinationMap[`lfo${i + 1}.phase`] = lfo.params.phase;
+      // Note: waveform is discrete, typically not modulated
+    });
+    
+    console.log(`✓ Destination map built - ${Object.keys(this.destinationMap).length} parameters available`);
   }
 
   configureDefaults() {
-    // JF #1: Cycle mode LFO for pitch modulation
+    // JF #1
     this.jf1.setMode(2);
     this.jf1.setRange(0);
     this.jf1.setTime(0.25);
@@ -287,61 +294,68 @@ this.isRunning = false;
     this.jf1.setRamp(0.5);
     this.jf1.setCurve(0.5);
 
-    // JF Osc: Default to cycle/sound mode (VCO)
+    // JF Osc
     this.jfOsc.setCycleSoundMode();
     this.jfOsc.setUnison();
     this.jfOsc.setTriangleWave();
-    if (this.jfOsc.params && this.jfOsc.params.time) {
-      this.jfOsc.params.time.value = 0.5;
-    }
-    if (this.jfOsc.params && this.jfOsc.params.fmIndex) {
-      this.jfOsc.params.fmIndex.value = 0;
-    }
-    if (this.jfOsc.params && this.jfOsc.params.run) {
-      this.jfOsc.params.run.value = 0;
-    }
+    if (this.jfOsc.params?.time) this.jfOsc.params.time.value = 0.5;
+    if (this.jfOsc.params?.fmIndex) this.jfOsc.params.fmIndex.value = 0;
+    if (this.jfOsc.params?.run) this.jfOsc.params.run.value = 0;
     this.jfOsc.enableRunMode(false);
 
-    // Quantizer: C major scale
+    // Quantizer
     this.quantizer.setMajorScale(0);
     this.quantizer.setDepth(1.0);
     this.quantizer.setOffset(0);
 
-    // Transpose Sequencer: Forward mode, all steps disabled
+    // Transpose Sequencer
     this.transposeSeq.setPlaybackMode('forward');
     this.transposeSeq.clearCells();
 
-    // Mangrove A: Main voice
+    // Envelope/VCA
+    this.envelopeVCA.setMode('ASR');
+    this.envelopeVCA.setCurve('exponential');
+    this.envelopeVCA.setAttack(0.03);
+    this.envelopeVCA.setDecay(0.5);
+    this.envelopeVCA.setSustain(0.7);
+
+    // Mangroves
     this.mangroveA.setPitch(0.5);
     this.mangroveA.setBarrel(0.3);
     this.mangroveA.setFormant(0.6);
     this.mangroveA.setAir(0.5);
     this.mangroveA.setFMIndex(0.3);
 
-    // Mangrove B: FM modulator
     this.mangroveB.setPitch(0.52);
     this.mangroveB.setBarrel(0.65);
     this.mangroveB.setFormant(0.55);
     this.mangroveB.setAir(0.7);
 
-    // Mangrove C: Filter FM source
     this.mangroveC.setPitch(0.6);
     this.mangroveC.setBarrel(0.5);
     this.mangroveC.setFormant(0.5);
     this.mangroveC.setAir(0.8);
 
-    // Three Sisters: Default filter settings
+    // Three Sisters
     this.threeSisters.setFreq(0.5);
     this.threeSisters.setSpan(0.5);
     this.threeSisters.setQuality(0.5);
     this.threeSisters.setMode(0);
     this.threeSisters.setFMAttenuverter(0.5);
     
+    // LFOs: Default settings
+    this.lfos.forEach((lfo, i) => {
+      lfo.setRate(1.0); // 1 Hz
+      lfo.setWaveform('sine');
+      lfo.setPhase(i / 7); // Stagger phases
+    });
+    
     console.log('Default settings configured');
   }
 
-  // ========== OSCILLATOR SWITCHING ==========
-
+  // [Rest of the oscillator switching, FM mode, scope methods remain the same...]
+  // Keeping the existing methods for oscillator switching, FM routing, scopes, etc.
+  
   setActiveOscillator(osc) {
     if (osc === this.activeOscillator) return;
     
@@ -391,8 +405,6 @@ this.isRunning = false;
     });
   }
 
-  // ========== FM MODE SWITCHING ==========
-
   setFMMode(mode) {
     if (mode === this.fmMode) return;
     
@@ -408,8 +420,6 @@ this.isRunning = false;
       this.fmLinGain.gain.cancelScheduledValues(now);
       this.fmLinGain.gain.setValueAtTime(this.fmLinGain.gain.value, now);
       this.fmLinGain.gain.linearRampToValueAtTime(0.0, now + fadeTime);
-      
-      console.log('✓ FM Mode: Exponential (pitch modulation)');
     } else {
       this.fmExpGain.gain.cancelScheduledValues(now);
       this.fmExpGain.gain.setValueAtTime(this.fmExpGain.gain.value, now);
@@ -418,8 +428,6 @@ this.isRunning = false;
       this.fmLinGain.gain.cancelScheduledValues(now);
       this.fmLinGain.gain.setValueAtTime(this.fmLinGain.gain.value, now);
       this.fmLinGain.gain.linearRampToValueAtTime(1.0, now + fadeTime);
-      
-      console.log('✓ FM Mode: Linear (through-zero FM)');
     }
     
     document.querySelectorAll('.fm-mode-btn').forEach(btn => {
@@ -434,11 +442,7 @@ this.isRunning = false;
     this.fmGainB.gain.cancelScheduledValues(now);
     this.fmGainB.gain.setValueAtTime(this.fmGainB.gain.value, now);
     this.fmGainB.gain.linearRampToValueAtTime(enabled ? 1.0 : 0.0, now + 0.05);
-    
-    console.log(`FM B → A: ${enabled ? 'ENABLED' : 'DISABLED'}`);
   }
-
-  // ========== JUST FRIENDS OSC MODE SWITCHING ==========
 
   setJFOscMode(mode, range) {
     const modeValue = parseInt(mode);
@@ -475,8 +479,7 @@ this.isRunning = false;
     }
   }
 
-  // ========== SCOPE RENDERING ==========
-
+  // [Scope methods remain unchanged]
   setupScope1() {
     this.scope1Analyser = this.audioContext.createAnalyser();
     this.scope1Analyser.fftSize = 2048;
@@ -610,7 +613,389 @@ this.isRunning = false;
     }
   }
 
-  // ========== MODULATION MATRIX UI ==========
+  // ========== LFO UI GENERATION ==========
+
+  generateLFOHTML(lfoIndex) {
+    const lfoNum = lfoIndex + 1;
+    
+    return `
+      <div class="lfo-module" data-lfo="${lfoIndex}">
+        <div class="lfo-header">
+          <span class="lfo-title">LFO ${lfoNum}</span>
+          <label class="lfo-enable-toggle">
+            <input type="checkbox" class="lfo-enable" data-lfo="${lfoIndex}">
+            <span class="lfo-enable-text">enable</span>
+          </label>
+        </div>
+        
+        <div class="lfo-controls">
+          <div class="lfo-control-row">
+            <label>rate</label>
+            <input type="range" class="lfo-rate" data-lfo="${lfoIndex}" 
+                   min="0.01" max="100" step="0.01" value="1">
+            <span class="lfo-value lfo-rate-value" data-lfo="${lfoIndex}">1.00 Hz</span>
+          </div>
+          
+          <div class="lfo-control-row">
+            <label>waveform</label>
+            <select class="lfo-waveform" data-lfo="${lfoIndex}">
+              <option value="0">Sine</option>
+              <option value="1">Square</option>
+              <option value="2">Triangle</option>
+              <option value="3">Sample & Hold</option>
+              <option value="4">Smooth Random</option>
+              <option value="5">Ramp Down</option>
+              <option value="6">Ramp Up</option>
+              <option value="7">Exp Ramp Down</option>
+              <option value="8">Exp Ramp Up</option>
+            </select>
+          </div>
+          
+          <div class="lfo-control-row">
+            <label>phase</label>
+            <input type="range" class="lfo-phase" data-lfo="${lfoIndex}" 
+                   min="0" max="1" step="0.01" value="${(lfoIndex / 7).toFixed(2)}">
+            <span class="lfo-value lfo-phase-value" data-lfo="${lfoIndex}">${(lfoIndex / 7).toFixed(2)}</span>
+          </div>
+        </div>
+        
+        <div class="lfo-destinations">
+          ${this.generateLFODestinationHTML(lfoIndex, 0)}
+          ${this.generateLFODestinationHTML(lfoIndex, 1)}
+        </div>
+      </div>
+    `;
+  }
+
+  generateLFODestinationHTML(lfoIndex, destIndex) {
+    const destLetter = destIndex === 0 ? 'A' : 'B';
+    
+    return `
+      <div class="lfo-dest" data-lfo="${lfoIndex}" data-dest="${destIndex}">
+        <div class="lfo-dest-header">
+          <span class="lfo-dest-label">Destination ${destLetter}</span>
+          <label class="lfo-dest-toggle">
+            <input type="checkbox" class="lfo-dest-enable" 
+                   data-lfo="${lfoIndex}" data-dest="${destIndex}">
+            <span class="lfo-dest-toggle-text">enable</span>
+          </label>
+        </div>
+        
+        <div class="lfo-dest-controls">
+          <div class="lfo-control-row">
+            <label>target</label>
+            <select class="lfo-dest-param" data-lfo="${lfoIndex}" data-dest="${destIndex}">
+              <option value="">-- none --</option>
+              ${this.generateDestinationOptions()}
+            </select>
+          </div>
+          
+          <div class="lfo-control-row">
+            <label>mode</label>
+            <select class="lfo-dest-mode" data-lfo="${lfoIndex}" data-dest="${destIndex}">
+              <option value="0">Unipolar (0→1)</option>
+              <option value="1">Bipolar (-1→+1)</option>
+              <option value="2">Inv Unipolar (1→0)</option>
+              <option value="3">Inv Bipolar (+1→-1)</option>
+            </select>
+          </div>
+          
+          <div class="lfo-control-row">
+            <label>depth</label>
+            <input type="range" class="lfo-dest-depth" 
+                   data-lfo="${lfoIndex}" data-dest="${destIndex}"
+                   min="0" max="1" step="0.01" value="0.5">
+            <span class="lfo-value lfo-dest-depth-value" 
+                  data-lfo="${lfoIndex}" data-dest="${destIndex}">0.50</span>
+          </div>
+          
+          <div class="lfo-control-row">
+            <label>offset</label>
+            <input type="range" class="lfo-dest-offset" 
+                   data-lfo="${lfoIndex}" data-dest="${destIndex}"
+                   min="-1" max="1" step="0.01" value="0">
+            <span class="lfo-value lfo-dest-offset-value" 
+                  data-lfo="${lfoIndex}" data-dest="${destIndex}">0.00</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  generateDestinationOptions() {
+    // Build comprehensive optgroup structure
+    const groups = [
+      {
+        label: 'Just Friends #1',
+        options: [
+          { value: 'jf1.time', label: 'Time' },
+          { value: 'jf1.intone', label: 'Intone' },
+          { value: 'jf1.ramp', label: 'Ramp' },
+          { value: 'jf1.curve', label: 'Curve' },
+          { value: 'jf1.fmDepth', label: 'FM Depth' }
+        ]
+      },
+      {
+        label: 'Envelope/VCA',
+        options: [
+          { value: 'env.attack', label: 'Attack' },
+          { value: 'env.decay', label: 'Decay/Release' },
+          { value: 'env.sustain', label: 'Sustain' }
+        ]
+      },
+      {
+        label: 'Quantizer',
+        options: [
+          { value: 'quant.depth', label: 'Depth' },
+          { value: 'quant.offset', label: 'Offset' },
+          { value: 'quant.transpose', label: 'Transpose' }
+        ]
+      },
+      {
+        label: 'Mangrove A',
+        options: [
+          { value: 'ma.pitch', label: 'Pitch' },
+          { value: 'ma.barrel', label: 'Barrel' },
+          { value: 'ma.formant', label: 'Formant' },
+          { value: 'ma.air', label: 'Air' },
+          { value: 'ma.fmIndex', label: 'FM Depth' }
+        ]
+      },
+      {
+        label: 'Mangrove B',
+        options: [
+          { value: 'mb.pitch', label: 'Pitch' },
+          { value: 'mb.barrel', label: 'Barrel' },
+          { value: 'mb.formant', label: 'Formant' },
+          { value: 'mb.air', label: 'Air' },
+          { value: 'mb.fmIndex', label: 'FM Depth' }
+        ]
+      },
+      {
+        label: 'Mangrove C',
+        options: [
+          { value: 'mc.pitch', label: 'Pitch' },
+          { value: 'mc.barrel', label: 'Barrel' },
+          { value: 'mc.formant', label: 'Formant' },
+          { value: 'mc.air', label: 'Air' },
+          { value: 'mc.fmIndex', label: 'FM Depth' }
+        ]
+      },
+      {
+        label: 'Just Friends Osc',
+        options: [
+          { value: 'jfosc.time', label: 'Time' },
+          { value: 'jfosc.intone', label: 'Intone' },
+          { value: 'jfosc.ramp', label: 'Ramp' },
+          { value: 'jfosc.curve', label: 'Curve' },
+          { value: 'jfosc.fmIndex', label: 'FM Index' },
+          { value: 'jfosc.run', label: 'RUN' }
+        ]
+      },
+      {
+        label: 'Three Sisters',
+        options: [
+          { value: 'ts.freq', label: 'Frequency' },
+          { value: 'ts.span', label: 'Span' },
+          { value: 'ts.quality', label: 'Quality' },
+          { value: 'ts.fmAtten', label: 'FM Atten' }
+        ]
+      },
+      {
+        label: 'LFOs',
+        options: []
+      },
+      {
+        label: 'Master',
+        options: [
+          { value: 'master.volume', label: 'Volume' }
+        ]
+      }
+    ];
+    
+    // Add LFO destinations
+    for (let i = 0; i < 7; i++) {
+      groups.find(g => g.label === 'LFOs').options.push(
+        { value: `lfo${i + 1}.rate`, label: `LFO ${i + 1}: Rate` },
+        { value: `lfo${i + 1}.phase`, label: `LFO ${i + 1}: Phase` }
+      );
+    }
+    
+    // Generate HTML
+    let html = '';
+    groups.forEach(group => {
+      if (group.options.length === 0) return;
+      html += `<optgroup label="${group.label}">`;
+      group.options.forEach(opt => {
+        html += `<option value="${opt.value}">${opt.label}</option>`;
+      });
+      html += '</optgroup>';
+    });
+    
+    return html;
+  }
+
+  initLFOUI() {
+    const container = document.getElementById('lfoGridContainer');
+    if (!container) {
+      console.warn('LFO container not found');
+      return;
+    }
+    
+    for (let i = 0; i < 7; i++) {
+      container.innerHTML += this.generateLFOHTML(i);
+    }
+    
+    this.bindLFOControls();
+    console.log('✓ LFO UI initialized');
+  }
+
+  bindLFOControls() {
+    // LFO enable toggles
+    document.querySelectorAll('.lfo-enable').forEach(checkbox => {
+      checkbox.addEventListener('change', (e) => {
+        const lfoIndex = parseInt(e.target.dataset.lfo);
+        const enabled = e.target.checked;
+        const module = document.querySelector(`.lfo-module[data-lfo="${lfoIndex}"]`);
+        module.classList.toggle('active', enabled);
+        
+        // Actual enable/disable logic handled per-destination
+      });
+    });
+    
+    // LFO rate controls
+    document.querySelectorAll('.lfo-rate').forEach(slider => {
+      slider.addEventListener('input', (e) => {
+        const lfoIndex = parseInt(e.target.dataset.lfo);
+        const value = parseFloat(e.target.value);
+        this.lfos[lfoIndex].setRate(value);
+        
+        const display = document.querySelector(`.lfo-rate-value[data-lfo="${lfoIndex}"]`);
+        display.textContent = `${value.toFixed(2)} Hz`;
+      });
+    });
+    
+    // LFO waveform controls
+    document.querySelectorAll('.lfo-waveform').forEach(select => {
+      select.addEventListener('change', (e) => {
+        const lfoIndex = parseInt(e.target.dataset.lfo);
+        const waveform = parseInt(e.target.value);
+        this.lfos[lfoIndex].setWaveform(waveform);
+      });
+    });
+    
+    // LFO phase controls
+    document.querySelectorAll('.lfo-phase').forEach(slider => {
+      slider.addEventListener('input', (e) => {
+        const lfoIndex = parseInt(e.target.dataset.lfo);
+        const value = parseFloat(e.target.value);
+        this.lfos[lfoIndex].setPhase(value);
+        
+        const display = document.querySelector(`.lfo-phase-value[data-lfo="${lfoIndex}"]`);
+        display.textContent = value.toFixed(2);
+      });
+    });
+    
+    // Destination enable toggles
+    document.querySelectorAll('.lfo-dest-enable').forEach(checkbox => {
+      checkbox.addEventListener('change', (e) => {
+        const lfoIndex = parseInt(e.target.dataset.lfo);
+        const destIndex = parseInt(e.target.dataset.dest);
+        const enabled = e.target.checked;
+        
+        const dest = document.querySelector(
+          `.lfo-dest[data-lfo="${lfoIndex}"][data-dest="${destIndex}"]`
+        );
+        dest.classList.toggle('active', enabled);
+        
+        this.lfos[lfoIndex].setDestinationEnabled(destIndex, enabled);
+      });
+    });
+    
+    // Destination parameter selection
+    document.querySelectorAll('.lfo-dest-param').forEach(select => {
+      select.addEventListener('change', (e) => {
+        const lfoIndex = parseInt(e.target.dataset.lfo);
+        const destIndex = parseInt(e.target.dataset.dest);
+        const paramKey = e.target.value;
+        
+        if (!paramKey) {
+          this.lfos[lfoIndex].setDestination(destIndex, null);
+          return;
+        }
+        
+        const param = this.destinationMap[paramKey];
+        if (!param) {
+          console.error(`Unknown parameter: ${paramKey}`);
+          return;
+        }
+        
+        // Get current depth, offset, mode
+        const depthSlider = document.querySelector(
+          `.lfo-dest-depth[data-lfo="${lfoIndex}"][data-dest="${destIndex}"]`
+        );
+        const offsetSlider = document.querySelector(
+          `.lfo-dest-offset[data-lfo="${lfoIndex}"][data-dest="${destIndex}"]`
+        );
+        const modeSelect = document.querySelector(
+          `.lfo-dest-mode[data-lfo="${lfoIndex}"][data-dest="${destIndex}"]`
+        );
+        
+        const depth = parseFloat(depthSlider?.value || 0.5);
+        const offset = parseFloat(offsetSlider?.value || 0);
+        const mode = parseInt(modeSelect?.value || 0);
+        
+        this.lfos[lfoIndex].setDestination(destIndex, param, depth, offset, mode);
+        console.log(`LFO ${lfoIndex + 1} dest ${destIndex} → ${paramKey}`);
+      });
+    });
+    
+    // Destination depth controls
+    document.querySelectorAll('.lfo-dest-depth').forEach(slider => {
+      slider.addEventListener('input', (e) => {
+        const lfoIndex = parseInt(e.target.dataset.lfo);
+        const destIndex = parseInt(e.target.dataset.dest);
+        const value = parseFloat(e.target.value);
+        
+        this.lfos[lfoIndex].setDepth(destIndex, value);
+        
+        const display = document.querySelector(
+          `.lfo-dest-depth-value[data-lfo="${lfoIndex}"][data-dest="${destIndex}"]`
+        );
+        display.textContent = value.toFixed(2);
+      });
+    });
+    
+    // Destination offset controls
+    document.querySelectorAll('.lfo-dest-offset').forEach(slider => {
+      slider.addEventListener('input', (e) => {
+        const lfoIndex = parseInt(e.target.dataset.lfo);
+        const destIndex = parseInt(e.target.dataset.dest);
+        const value = parseFloat(e.target.value);
+        
+        this.lfos[lfoIndex].setOffset(destIndex, value);
+        
+        const display = document.querySelector(
+          `.lfo-dest-offset-value[data-lfo="${lfoIndex}"][data-dest="${destIndex}"]`
+        );
+        display.textContent = value.toFixed(2);
+      });
+    });
+    
+    // Destination mode controls
+    document.querySelectorAll('.lfo-dest-mode').forEach(select => {
+      select.addEventListener('change', (e) => {
+        const lfoIndex = parseInt(e.target.dataset.lfo);
+        const destIndex = parseInt(e.target.dataset.dest);
+        const mode = parseInt(e.target.value);
+        
+        this.lfos[lfoIndex].setMode(destIndex, mode);
+      });
+    });
+  }
+
+  // [Rest of mod matrix, transpose sequencer UI, and other methods remain the same...]
+  // Keeping existing code for mod matrix, sequencer, etc.
 
   generateModSlotHTML(slotIndex) {
     const slopeNames = ['2N', '3N', '4N', '5N', '6N'];
@@ -632,50 +1017,7 @@ this.isRunning = false;
             <label>destination</label>
             <select class="mod-destination" data-slot="${slotIndex}">
               <option value="">-- none --</option>
-              <optgroup label="Just Friends #1 (LFO)">
-                <option value="jf1.time">JF1: Time</option>
-                <option value="jf1.intone">JF1: Intone</option>
-                <option value="jf1.ramp">JF1: Ramp</option>
-                <option value="jf1.curve">JF1: Curve</option>
-              </optgroup>
-              <optgroup label="Quantizer">
-                <option value="quant.depth">Quantizer: Depth</option>
-                <option value="quant.offset">Quantizer: Offset</option>
-              </optgroup>
-              <optgroup label="Mangrove A">
-                <option value="ma.pitch">Mangrove A: Pitch</option>
-                <option value="ma.barrel">Mangrove A: Barrel</option>
-                <option value="ma.formant">Mangrove A: Formant</option>
-                <option value="ma.air">Mangrove A: Air</option>
-                <option value="ma.fmIndex">Mangrove A: FM Depth</option>
-              </optgroup>
-              <optgroup label="Mangrove B">
-                <option value="mb.pitch">Mangrove B: Pitch</option>
-                <option value="mb.barrel">Mangrove B: Barrel</option>
-                <option value="mb.formant">Mangrove B: Formant</option>
-              </optgroup>
-              <optgroup label="Mangrove C">
-                <option value="mc.pitch">Mangrove C: Pitch</option>
-                <option value="mc.barrel">Mangrove C: Barrel</option>
-                <option value="mc.formant">Mangrove C: Formant</option>
-              </optgroup>
-              <optgroup label="Just Friends Osc">
-                <option value="jfosc.time">JF Osc: Time</option>
-                <option value="jfosc.intone">JF Osc: Intone</option>
-                <option value="jfosc.ramp">JF Osc: Ramp</option>
-                <option value="jfosc.curve">JF Osc: Curve</option>
-                <option value="jfosc.fmIndex">JF Osc: FM Index</option>
-                <option value="jfosc.run">JF Osc: RUN</option>
-              </optgroup>
-              <optgroup label="Three Sisters">
-                <option value="ts.freq">Three Sisters: Freq</option>
-                <option value="ts.span">Three Sisters: Span</option>
-                <option value="ts.quality">Three Sisters: Quality</option>
-                <option value="ts.fmAtten">Three Sisters: FM Atten</option>
-              </optgroup>
-              <optgroup label="Master">
-                <option value="master.volume">Master: Volume</option>
-              </optgroup>
+              ${this.generateDestinationOptions()}
             </select>
           </div>
           
@@ -710,7 +1052,7 @@ this.isRunning = false;
   initModMatrixUI() {
     const container = document.getElementById('modSlotsContainer');
     if (!container) {
-      console.warn('Mod matrix container not found - skipping mod matrix UI');
+      console.warn('Mod matrix container not found');
       return;
     }
     
@@ -719,17 +1061,11 @@ this.isRunning = false;
     }
     
     this.bindModMatrixControls();
-    
     console.log('✓ Modulation matrix UI initialized');
   }
 
-  // ========== TRANSPOSE SEQUENCER UI ==========
-  
   createSequencerUI() {
-    console.log('[Sequencer] Creating UI...');
-    
     const grid = document.getElementById('sequencerGrid');
-    
     if (!grid) {
       console.error('[Sequencer] ERROR: Grid container not found!');
       return;
@@ -758,11 +1094,10 @@ this.isRunning = false;
     }
     
     this.setupSequencerListeners();
-    console.log('[Sequencer] ✓ Complete');
   }
 
   setupSequencerListeners() {
-    // Cell toggles
+    // [Keep existing sequencer listener code...]
     document.querySelectorAll('.seq-cell-toggle').forEach(toggle => {
       toggle.addEventListener('change', (e) => {
         const step = parseInt(e.target.dataset.step);
@@ -776,7 +1111,6 @@ this.isRunning = false;
       });
     });
     
-    // Transpose sliders
     document.querySelectorAll('.transpose-slider').forEach(slider => {
       slider.addEventListener('input', (e) => {
         const step = parseInt(e.target.dataset.step);
@@ -794,7 +1128,6 @@ this.isRunning = false;
       });
     });
     
-    // Repeats inputs
     document.querySelectorAll('.repeats-input').forEach(input => {
       input.addEventListener('change', (e) => {
         const step = parseInt(e.target.dataset.step);
@@ -808,7 +1141,6 @@ this.isRunning = false;
       });
     });
     
-    // Playback mode buttons
     document.querySelectorAll('.playback-mode-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         document.querySelectorAll('.playback-mode-btn').forEach(b => 
@@ -821,7 +1153,6 @@ this.isRunning = false;
       });
     });
     
-    // Action buttons
     document.getElementById('seqResetBtn')?.addEventListener('click', () => {
       if (this.transposeSeq) {
         this.transposeSeq.reset();
@@ -930,14 +1261,11 @@ this.isRunning = false;
     if (slotElement) {
       slotElement.classList.toggle('active', enabled);
     }
-    
-    console.log(`Mod slot ${slot} ${enabled ? 'ENABLED' : 'DISABLED'}`);
   }
 
   handleModDestinationChange(slot, destination) {
     if (!destination || destination === '') {
       this.modMatrix.clearSlot(slot);
-      console.log(`Mod slot ${slot} destination cleared`);
       return;
     }
     
@@ -949,15 +1277,10 @@ this.isRunning = false;
     }
     
     this.modMatrix.setDestination(slot, audioParam);
-    console.log(`Mod slot ${slot} → ${destination}`);
   }
-
-  // ========== SCALE SELECTION ==========
 
   setScale(scaleName, root = 0) {
     if (!this.quantizer) return;
-
-    console.log(`Setting scale: ${scaleName}, root: ${root}`);
 
     switch (scaleName) {
       case 'chromatic':
@@ -1020,19 +1343,19 @@ this.isRunning = false;
     });
   }
 
-  // ========== UI SETUP ==========
-
   setupUI() {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
         this.bindControls();
         this.initModMatrixUI();
         this.createSequencerUI();
+        this.initLFOUI();
       });
     } else {
       this.bindControls();
       this.initModMatrixUI();
       this.createSequencerUI();
+      this.initLFOUI();
     }
   }
 
@@ -1042,7 +1365,6 @@ this.isRunning = false;
       startBtn.addEventListener('click', () => this.toggle());
     }
 
-    // Oscillator toggle
     document.querySelectorAll('.osc-toggle-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const osc = e.target.dataset.osc;
@@ -1050,7 +1372,6 @@ this.isRunning = false;
       });
     });
 
-    // FM mode toggle
     document.querySelectorAll('.fm-mode-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const mode = e.target.dataset.mode;
@@ -1058,7 +1379,6 @@ this.isRunning = false;
       });
     });
 
-    // FM enable
     const fmEnable = document.getElementById('fmEnable');
     if (fmEnable) {
       fmEnable.checked = false;
@@ -1067,7 +1387,6 @@ this.isRunning = false;
       });
     }
 
-    // JF #1 controls
     this.bindKnob('jf1Time', (val) => this.jf1?.setTime(val));
     this.bindKnob('jf1Intone', (val) => this.jf1?.setIntone(val));
     this.bindKnob('jf1Ramp', (val) => this.jf1?.setRamp(val));
@@ -1087,7 +1406,6 @@ this.isRunning = false;
       });
     }
 
-    // JF Osc controls
     this.bindKnob('jfOscTime', (val) => {
       if (this.jfOsc?.params?.time) this.jfOsc.params.time.value = val;
     });
@@ -1107,7 +1425,6 @@ this.isRunning = false;
       if (this.jfOsc?.params?.run) this.jfOsc.params.run.value = val;
     });
 
-    // JF Osc mode selection
     const jfOscMode = document.getElementById('jfOscMode');
     if (jfOscMode) {
       jfOscMode.addEventListener('change', (e) => {
@@ -1124,7 +1441,6 @@ this.isRunning = false;
       });
     }
 
-    // JF Osc RUN toggle
     const jfOscRunToggle = document.getElementById('jfOscRunToggle');
     if (jfOscRunToggle) {
       jfOscRunToggle.addEventListener('change', (e) => {
@@ -1135,7 +1451,6 @@ this.isRunning = false;
       });
     }
 
-    // JF Osc trigger buttons
     document.querySelectorAll('.jfosc-trigger-btn').forEach(btn => {
       const index = parseInt(btn.dataset.index);
       
@@ -1154,11 +1469,9 @@ this.isRunning = false;
       });
     });
 
-    // Quantizer controls
     this.bindKnob('quantDepth', (val) => this.quantizer?.setDepth(val));
     this.bindKnob('quantOffset', (val) => this.quantizer?.setOffset(val));
 
-    // Scale selection
     const rootSelect = document.getElementById('rootNote');
     if (rootSelect) {
       rootSelect.addEventListener('change', () => {
@@ -1182,27 +1495,22 @@ this.isRunning = false;
       });
     });
 
-    // Piano keyboard
     this.createPianoKeyboard();
 
-    // Mangrove A controls
     this.bindKnob('maPitch', (val) => this.mangroveA?.setPitch(val));
     this.bindKnob('maBarrel', (val) => this.mangroveA?.setBarrel(val));
     this.bindKnob('maFormant', (val) => this.mangroveA?.setFormant(val));
     this.bindKnob('maAir', (val) => this.mangroveA?.setAir(val));
     this.bindKnob('maFmIndex', (val) => this.mangroveA?.setFMIndex(val));
 
-    // Mangrove B controls
     this.bindKnob('mbPitch', (val) => this.mangroveB?.setPitch(val));
     this.bindKnob('mbBarrel', (val) => this.mangroveB?.setBarrel(val));
     this.bindKnob('mbFormant', (val) => this.mangroveB?.setFormant(val));
 
-    // Mangrove C controls
     this.bindKnob('mcPitch', (val) => this.mangroveC?.setPitch(val));
     this.bindKnob('mcBarrel', (val) => this.mangroveC?.setBarrel(val));
     this.bindKnob('mcFormant', (val) => this.mangroveC?.setFormant(val));
 
-    // Three Sisters controls
     this.bindKnob('tsFreq', (val) => this.threeSisters?.setFreq(val));
     this.bindKnob('tsSpan', (val) => this.threeSisters?.setSpan(val));
     this.bindKnob('tsQuality', (val) => this.threeSisters?.setQuality(val));
@@ -1288,18 +1596,6 @@ this.isRunning = false;
     this.updatePianoKeyboard();
     this.updateOscillatorUI();
     this.updateJFOscModeDisplay();
-    
-    const fmEnable = document.getElementById('fmEnable');
-    if (fmEnable) {
-      fmEnable.checked = false;
-    }
-    
-    const majorBtn = document.querySelector('.scale-btn[data-scale="major"]');
-    if (majorBtn) {
-      majorBtn.classList.add('active');
-    }
-    
-    console.log('UI synced - ready to modulate!');
   }
 }
 
