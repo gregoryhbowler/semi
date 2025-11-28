@@ -14,7 +14,6 @@ export class LFONode extends AudioWorkletNode {
     });
     
     this.lfoIndex = lfoIndex;
-    this.context = context;
     
     // Store parameter references
     this.params = {
