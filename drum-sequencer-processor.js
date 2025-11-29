@@ -140,8 +140,9 @@ class DrumSequencerProcessor extends AudioWorkletProcessor {
         // division=1: advance 1 step per pulse (slowest)
         // division=4: advance 4 steps per pulse (default)  
         // division=16: advance 16 steps per pulse (fastest)
+        const actualSteps = this.clockDivision * 2;  // ← ADD THIS LINE
         
-        for (let div = 0; div < this.clockDivision; div++) {
+        for (let div = 0; div < actualSteps; div++) { 
           this.advanceDrumStep();
           
           // Trigger on first subdivision
