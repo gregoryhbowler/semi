@@ -40,10 +40,11 @@ class Phase5App {
     this.jfMerger = null;
     
     // Drum machine
+      this.transposeStepClockGain = null;
     this.drumSequencer = null;
     this.drumSynth = null;
     this.drumMasterGain = null;
-    this.drumClockSource = 'jf'; // 'jf' or 'rene'
+    this.drumClockSource = 'transpose'; // 'jf' or 'rene' or 'transpose'
     
     // Clock pulse generators for drums (FIXED: using gain nodes)
     this.jfDrumClockGain = null;
@@ -281,60 +282,60 @@ class Phase5App {
     source.start(time);
   }
 
-  setupDrumRouting() {
-  // Connect sequencer outputs to synth inputs
-  this.drumSequencer.getKickTriggerOutput().connect(this.drumSynth.getKickTriggerInput());
-  this.drumSequencer.getSnareTriggerOutput().connect(this.drumSynth.getSnareTriggerInput());
-  this.drumSequencer.getHatTriggerOutput().connect(this.drumSynth.getHatTriggerInput());
-  
-  // Connect synth output to master
-  this.drumSynth.getOutput().connect(this.drumMasterGain);
-  this.drumMasterGain.connect(this.masterGain);
-  
-  // Connect JF 4N to drum clock (4× faster than IDENTITY for 16th notes)
-  // With INTONE at overtone mode, 4N provides the 16th note subdivisions
-  this.jf1.get4NOutput().connect(this.jfDrumClockGain);
-  
-  // Both clock sources feed into drum sequencer
-  this.jfDrumClockGain.connect(this.drumSequencer.getClockInput());
-  this.reneDrumClockGain.connect(this.drumSequencer.getClockInput());
-  
-  // Set initial clock source
-  this.setDrumClockSource('jf');
-  
-  console.log('✓ Drum machine routing complete (using JF 4N for 16th note clock)');
-}
+  // Source 1: JF (existing)
+    this.jf1.get4NOutput().connect(this.jfDrumClockGain);
+    this.jfDrumClockGain.connect(this.drumSequencer.getStepClockInput());
+    
+    // Source 2: René (existing)
+    this.reneDrumClockGain.connect(this.drumSequencer.getStepClockInput());
+    
+    // Source 3: Transpose Sequencer (NEW!)
+    this.transposeStepClockGain = this.audioContext.createGain();
+    this.transposeStepClockGain.gain.value = 0;
+    this.transposeSeq.getStepPulseOutput().connect(this.transposeStepClockGain);
+    this.transposeStepClockGain.connect(this.drumSequencer.getStepClockInput());
+    
+    // Reset pulse (works with all sources)
+    this.transposeSeq.getResetPulseOutput().connect(this.drumSequencer.getResetClockInput());
+    
+    // Set defaults
+    this.setDrumClockSource('transpose');
+    this.drumSequencer.setClockDivision(4);
+  }
 
   setDrumClockSource(source) {
-    this.drumClockSource = source;
+  this.drumClockSource = source;
+  
+  const now = this.audioContext.currentTime;
+  const fadeTime = 0.01;
+  
+  // Fade out ALL sources
+  this.jfDrumClockGain.gain.cancelScheduledValues(now);
+  this.jfDrumClockGain.gain.setValueAtTime(this.jfDrumClockGain.gain.value, now);
+  this.jfDrumClockGain.gain.linearRampToValueAtTime(0, now + fadeTime);
+  
+  this.reneDrumClockGain.gain.cancelScheduledValues(now);
+  this.reneDrumClockGain.gain.setValueAtTime(this.reneDrumClockGain.gain.value, now);
+  this.reneDrumClockGain.gain.linearRampToValueAtTime(0, now + fadeTime);
+  
+  this.transposeStepClockGain.gain.cancelScheduledValues(now);
+  this.transposeStepClockGain.gain.setValueAtTime(this.transposeStepClockGain.gain.value, now);
+  this.transposeStepClockGain.gain.linearRampToValueAtTime(0, now + fadeTime);
+  
+  // Fade in selected source
+  if (source === 'jf') {
+    this.jfDrumClockGain.gain.linearRampToValueAtTime(1.0, now + fadeTime * 2);
+    console.log('✓ Drums clocked by Just Friends 4N');
     
-    const now = this.audioContext.currentTime;
-    const fadeTime = 0.01;
+  } else if (source === 'rene') {
+    this.reneDrumClockGain.gain.linearRampToValueAtTime(1.0, now + fadeTime * 2);
+    console.log('✓ Drums clocked by René cycles');
     
-    if (source === 'jf') {
-      // Enable JF clock, disable René clock
-      this.jfDrumClockGain.gain.cancelScheduledValues(now);
-      this.jfDrumClockGain.gain.setValueAtTime(this.jfDrumClockGain.gain.value, now);
-      this.jfDrumClockGain.gain.linearRampToValueAtTime(1.0, now + fadeTime);
-      
-      this.reneDrumClockGain.gain.cancelScheduledValues(now);
-      this.reneDrumClockGain.gain.setValueAtTime(this.reneDrumClockGain.gain.value, now);
-      this.reneDrumClockGain.gain.linearRampToValueAtTime(0, now + fadeTime);
-      
-      console.log('✓ Drums clocked by Just Friends');
-    } else {
-      // Enable René clock, disable JF clock
-      this.jfDrumClockGain.gain.cancelScheduledValues(now);
-      this.jfDrumClockGain.gain.setValueAtTime(this.jfDrumClockGain.gain.value, now);
-      this.jfDrumClockGain.gain.linearRampToValueAtTime(0, now + fadeTime);
-      
-      this.reneDrumClockGain.gain.cancelScheduledValues(now);
-      this.reneDrumClockGain.gain.setValueAtTime(this.reneDrumClockGain.gain.value, now);
-      this.reneDrumClockGain.gain.linearRampToValueAtTime(1.0, now + fadeTime);
-      
-      console.log('✓ Drums clocked by René (16th notes)');
-    }
+  } else if (source === 'transpose') {
+    this.transposeStepClockGain.gain.linearRampToValueAtTime(1.0, now + fadeTime * 2);
+    console.log('✓ Drums clocked by Transpose Sequencer (step pulses)');
   }
+}
 
   initDrumStepSequencerUI() {
   const voices = ['kick', 'snare', 'hat'];
@@ -1432,6 +1433,11 @@ class Phase5App {
   const clockSource = document.getElementById('drumClockSource');
   clockSource?.addEventListener('change', (e) => {
     this.setDrumClockSource(e.target.value);
+  });
+
+  const clockDiv = document.getElementById('drumClockDivision');
+  clockDiv?.addEventListener('change', (e) => {
+    this.drumSequencer.setClockDivision(parseInt(e.target.value));
   });
   
   // Clear buttons for individual voices
