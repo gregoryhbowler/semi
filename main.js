@@ -519,6 +519,7 @@ class Phase5App {
     this.drumMasterGain.gain.value = 0.70;
     
     console.log('✓ Drum defaults set to screenshot values');
+  }
 
   setActiveOscillator(osc) {
     if (osc === this.activeOscillator) return;
