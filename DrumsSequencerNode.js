@@ -1,6 +1,6 @@
 export class DrumsSequencerNode extends AudioWorkletNode {
     constructor(context) {
-        super(context, 'sequencer-processor', {
+        super(context, 'drums-sequencer-processor', {
             numberOfInputs: 0,
             numberOfOutputs: 1,
             outputChannelCount: [2] // Stereo output: Left=KickTrigger, Right=SnareTrigger
