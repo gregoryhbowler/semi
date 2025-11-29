@@ -99,6 +99,32 @@
   box-shadow: 0 2px 8px rgba(141, 196, 154, 0.4);
 }
 
+/* Blank button - distinct style */
+.pattern-blank-btn {
+  padding: 4px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pattern-blank-btn:hover {
+  background: white;
+  border-color: var(--text-primary);
+  transform: scale(1.05);
+}
+
+.pattern-blank-btn:active {
+  transform: scale(0.98);
+}
+
 .pattern-grid {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
