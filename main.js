@@ -293,12 +293,12 @@ class Phase5App {
   
   // Source 1: JF
   this.jf1.get4NOutput().connect(this.jfDrumClockGain);
-  this.jfDrumClockGain.connect(this.drumSequencer.getStepClockInput()); // NEW
+  this.jfDrumClockGain.connect(this.drumSequencer.getStepClockInput());
   
   // Source 2: René
-  this.reneDrumClockGain.connect(this.drumSequencer.getStepClockInput()); // NEW
+  this.reneDrumClockGain.connect(this.drumSequencer.getStepClockInput());
   
-  // Source 3: Transpose Sequencer (NEW!)
+  // Source 3: Transpose Sequencer
   this.transposeStepClockGain = this.audioContext.createGain();
   this.transposeStepClockGain.gain.value = 0;
   this.transposeSeq.getStepPulseOutput().connect(this.transposeStepClockGain);
@@ -308,7 +308,7 @@ class Phase5App {
   this.transposeSeq.getResetPulseOutput().connect(this.drumSequencer.getResetClockInput());
   
   // Set defaults
-  this.setDrumClockSource('transpose'); // or 'jf' if you prefer
+  this.setDrumClockSource('transpose');
   this.drumSequencer.setClockDivision(4);
   
   console.log('✓ Drum routing complete (3 clock sources + division)');
