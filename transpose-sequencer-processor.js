@@ -3,6 +3,11 @@
 // SUPPORTS TWO CLOCK SOURCES:
 // 1. Just Friends #1 IDENTITY (zero crossing detection)
 // 2. External trigger (e.g., René note cycle completion)
+//
+// OUTPUTS (3 channels):
+// Channel 0: Transpose CV
+// Channel 1: Step pulse (5ms pulse on every step advance)
+// Channel 2: Reset pulse (5ms pulse when looping to step 0)
 
 class TransposeSequencerProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -29,6 +34,11 @@ class TransposeSequencerProcessor extends AudioWorkletProcessor {
     this.prevSample = 0;
     this.clockThreshold = 0.1; // Threshold for zero crossing detection
     
+    // Pulse generation (5ms pulses)
+    this.stepPulseRemaining = 0;
+    this.resetPulseRemaining = 0;
+    this.pulseDurationSamples = Math.round(sampleRate * 0.005); // 5ms
+    
     // Message handling
     this.port.onmessage = (event) => {
       const { type } = event.data;
@@ -39,11 +49,9 @@ class TransposeSequencerProcessor extends AudioWorkletProcessor {
       } else if (type === 'playback-mode') {
         this.playbackMode = event.data.mode;
       } else if (type === 'clock-source') {
-        // NEW: Set clock source mode
         this.clockSource = event.data.source;
         console.log(`[Transpose Seq] Clock source: ${this.clockSource.toUpperCase()}`);
       } else if (type === 'external-trigger') {
-        // NEW: External trigger from René or other source
         this.advanceSequence();
       } else if (type === 'reset') {
         this.reset();
@@ -60,6 +68,8 @@ class TransposeSequencerProcessor extends AudioWorkletProcessor {
     this.currentRepeat = 0;
     this.direction = 1;
     this.updateCurrentTranspose();
+    // Trigger reset pulse
+    this.resetPulseRemaining = this.pulseDurationSamples;
   }
 
   updateCurrentTranspose() {
@@ -94,7 +104,18 @@ class TransposeSequencerProcessor extends AudioWorkletProcessor {
     // Check if we should advance to next step
     if (this.currentRepeat >= repeatsNeeded) {
       this.currentRepeat = 0;
+      const prevStep = this.currentStep;
       this.advanceStep();
+      
+      // Trigger step pulse on every step advance
+      this.stepPulseRemaining = this.pulseDurationSamples;
+      
+      // If we wrapped to step 0, trigger reset pulse
+      if (prevStep > this.currentStep && this.playbackMode === 'forward') {
+        this.resetPulseRemaining = this.pulseDurationSamples;
+      } else if (prevStep < this.currentStep && this.playbackMode === 'backward') {
+        this.resetPulseRemaining = this.pulseDurationSamples;
+      }
     }
   }
 
@@ -203,13 +224,36 @@ class TransposeSequencerProcessor extends AudioWorkletProcessor {
     const input = inputs[0];
     const output = outputs[0];
     
+    if (!output || output.length < 3) return true;
+    
+    const transposeOut = output[0];
+    const stepPulseOut = output[1];
+    const resetPulseOut = output[2];
+    
     // In René mode, ignore JF clock input
     if (this.clockSource === 'rene') {
-      // Output current transpose value (for monitoring)
-      if (output && output[0]) {
-        for (let i = 0; i < 128; i++) {
-          output[0][i] = this.currentTranspose / 12.0;
+      // Output current transpose value and pulses
+      for (let i = 0; i < 128; i++) {
+        // Channel 0: Transpose CV
+        transposeOut[i] = this.currentTranspose / 12.0;
+        
+        // Channel 1: Step pulse
+        if (this.stepPulseRemaining > 0) {
+          stepPulseOut[i] = 1.0;
+          this.stepPulseRemaining--;
+        } else {
+          stepPulseOut[i] = 0.0;
         }
+        
+        // Channel 2: Reset pulse
+        if (this.resetPulseRemaining > 0) {
+          resetPulseOut[i] = 1.0;
+          this.resetPulseRemaining--;
+        } else {
+          resetPulseOut[i] = 0.0;
+        }
+        
+        this.sampleCount++;
       }
       return true;
     }
@@ -228,10 +272,23 @@ class TransposeSequencerProcessor extends AudioWorkletProcessor {
         this.advanceSequence();
       }
       
-      // Output current transpose value
-      // Convert semitones to voltage for monitoring (1 semitone = 1/12 volt)
-      if (output && output[0]) {
-        output[0][i] = this.currentTranspose / 12.0;
+      // Channel 0: Transpose CV
+      transposeOut[i] = this.currentTranspose / 12.0;
+      
+      // Channel 1: Step pulse
+      if (this.stepPulseRemaining > 0) {
+        stepPulseOut[i] = 1.0;
+        this.stepPulseRemaining--;
+      } else {
+        stepPulseOut[i] = 0.0;
+      }
+      
+      // Channel 2: Reset pulse
+      if (this.resetPulseRemaining > 0) {
+        resetPulseOut[i] = 1.0;
+        this.resetPulseRemaining--;
+      } else {
+        resetPulseOut[i] = 0.0;
       }
       
       this.sampleCount++;
