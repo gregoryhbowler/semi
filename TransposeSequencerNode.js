@@ -4,13 +4,18 @@
 // Uses Just Friends #1 IDENTITY output as a clock source (default)
 // OR can be triggered externally by René note sequence cycles
 // Outputs semitone transpose offsets synchronized to clock cycles
+//
+// OUTPUTS (3 channels):
+// Channel 0: Transpose CV (for visualization/monitoring)
+// Channel 1: Step pulse (fires on every step advance)
+// Channel 2: Reset pulse (fires when sequence loops back to step 0)
 
 export class TransposeSequencerNode extends AudioWorkletNode {
   constructor(context) {
     super(context, 'transpose-sequencer-processor', {
       numberOfInputs: 1,  // Clock input from JF #1 IDENTITY
-      numberOfOutputs: 1, // Transpose CV output (for visualization/monitoring)
-      outputChannelCount: [1],
+      numberOfOutputs: 1, // 3 channels: Transpose CV, Step pulse, Reset pulse
+      outputChannelCount: [3],
       channelCount: 1,
       channelCountMode: 'explicit',
       channelInterpretation: 'discrete'
@@ -28,16 +33,28 @@ export class TransposeSequencerNode extends AudioWorkletNode {
     this.currentStep = 0;
     this.currentTranspose = 0;
     
-    // NEW: Clock source mode
+    // Clock source mode
     this.clockSource = 'jf'; // 'jf' or 'rene'
     
     // Create I/O nodes
     this.clockInput = context.createGain();
-    this.transposeOutput = context.createGain();
     
-    // Wire up
+    // Create channel splitter for accessing separate outputs
+    this.splitter = context.createChannelSplitter(3);
+    this.connect(this.splitter);
+    
+    // Create gain nodes for each output
+    this.transposeOutput = context.createGain();
+    this.stepPulseOutput = context.createGain();
+    this.resetPulseOutput = context.createGain();
+    
+    // Connect splitter to outputs
+    this.splitter.connect(this.transposeOutput, 0); // Channel 0: Transpose CV
+    this.splitter.connect(this.stepPulseOutput, 1); // Channel 1: Step pulse
+    this.splitter.connect(this.resetPulseOutput, 2); // Channel 2: Reset pulse
+    
+    // Wire up clock input
     this.clockInput.connect(this, 0, 0);
-    this.connect(this.transposeOutput, 0, 0);
     
     // Listen for messages from processor
     this.port.onmessage = (event) => {
@@ -182,7 +199,7 @@ export class TransposeSequencerNode extends AudioWorkletNode {
     return this.currentTranspose;
   }
 
-  // ========== NEW: CLOCK SOURCE CONTROL ==========
+  // ========== CLOCK SOURCE CONTROL ==========
 
   /**
    * Set clock source mode
@@ -242,11 +259,30 @@ export class TransposeSequencerNode extends AudioWorkletNode {
     return this.transposeOutput;
   }
 
+  /**
+   * Get step pulse output (fires on every step advance)
+   * Connect this to drum sequencer clock input
+   */
+  getStepPulseOutput() {
+    return this.stepPulseOutput;
+  }
+
+  /**
+   * Get reset pulse output (fires when looping to step 0)
+   * Connect this to drum sequencer reset input
+   */
+  getResetPulseOutput() {
+    return this.resetPulseOutput;
+  }
+
   // ========== CLEANUP ==========
 
   dispose() {
     this.disconnect();
     this.clockInput.disconnect();
+    this.splitter.disconnect();
     this.transposeOutput.disconnect();
+    this.stepPulseOutput.disconnect();
+    this.resetPulseOutput.disconnect();
   }
 }
