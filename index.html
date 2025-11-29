@@ -661,13 +661,24 @@
     <h2 class="section-title">drum machine</h2>
     
     <div class="drum-clock-selector">
-      <label>clock source</label>
-      <select id="drumClockSource">
-        <option value="jf">Just Friends</option>
-        <option value="rene">René (16th notes)</option>
-      </select>
-    </div>
-  </div>
+  <label>clock source</label>
+  <select id="drumClockSource">
+    <option value="transpose">Transpose Sequencer</option>
+    <option value="rene">René Cycles</option>
+    <option value="jf">Just Friends 4N</option>
+  </select>
+</div>
+
+<div class="drum-clock-selector">
+  <label>clock division</label>
+  <select id="drumClockDivision">
+    <option value="1">1×</option>
+    <option value="2">2×</option>
+    <option value="4" selected>4×</option>
+    <option value="8">8×</option>
+    <option value="16">16×</option>
+  </select>
+</div>
   
   <!-- Step Sequencers -->
   <div class="drum-sequencer-section">
