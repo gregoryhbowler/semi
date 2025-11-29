@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="rene-styles-redesigned.css">
   <link rel="stylesheet" href="rene-pattern-ui-styles.css">
   <link rel="stylesheet" href="lfo-styles.css">
+  <link rel="stylesheet" href="drum-machine-styles.css">
 </head>
 <body>
   <div class="header">
@@ -653,6 +654,186 @@
         <button class="seq-action-btn" id="seqRandomizeBtn">randomize</button>
       </div>
     </div>
+
+    <div class="panel-section drum-machine-panel">
+  <!-- Header with Clock Source -->
+  <div class="drum-header">
+    <h2 class="section-title">generative drum machine</h2>
+    
+    <div class="drum-clock-selector">
+      <label>clock source</label>
+      <select id="drumClockSource">
+        <option value="jf">Just Friends</option>
+        <option value="rene">René (16th notes)</option>
+      </select>
+    </div>
+  </div>
+  
+  <!-- Randomization Controls -->
+  <div class="drum-randomize-section">
+    <div class="drum-randomize-grid">
+      <button class="drum-randomize-btn primary" id="drumRandomizeAll">
+        🎲 Randomize Everything
+      </button>
+      <button class="drum-randomize-btn" id="drumRandomizeKit">
+        🥁 New Kit
+      </button>
+      <button class="drum-randomize-btn" id="drumRandomizePattern">
+        🎵 New Pattern
+      </button>
+      <button class="drum-randomize-btn" id="drumRandomizeGroove">
+        〰️ New Groove
+      </button>
+      <button class="drum-randomize-btn" id="drumRandomizeKick">
+        🦵 Randomize Kick
+      </button>
+      <button class="drum-randomize-btn" id="drumRandomizeSnare">
+        👏 Randomize Snare
+      </button>
+      <button class="drum-randomize-btn" id="drumRandomizeHat">
+        🎩 Randomize Hat
+      </button>
+      <button class="drum-randomize-btn" id="drumRandomizeKickPattern">
+        🦵🎵 Kick Pattern
+      </button>
+      <button class="drum-randomize-btn" id="drumRandomizeSnarePattern">
+        👏🎵 Snare Pattern
+      </button>
+      <button class="drum-randomize-btn" id="drumRandomizeHatPattern">
+        🎩🎵 Hat Pattern
+      </button>
+    </div>
+  </div>
+  
+  <!-- Three Voice Sections -->
+  <div class="drum-voices-container">
+    
+    <!-- KICK DRUM -->
+    <div class="drum-voice-section" id="drumKickSection">
+      <div class="drum-voice-header">
+        <span class="drum-voice-title">Kick</span>
+        <label class="drum-mute-toggle">
+          <input type="checkbox" id="drumKickMute">
+          <span>mute</span>
+        </label>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>pitch</label>
+        <input type="range" id="drumKickPitch" min="20" max="200" step="1" value="50">
+        <span class="drum-param-value" id="drumKickPitchValue">50 Hz</span>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>decay</label>
+        <input type="range" id="drumKickDecay" min="0.01" max="2" step="0.01" value="0.5">
+        <span class="drum-param-value" id="drumKickDecayValue">0.50s</span>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>drive</label>
+        <input type="range" id="drumKickDrive" min="0" max="1" step="0.01" value="0">
+        <span class="drum-param-value" id="drumKickDriveValue">0.00</span>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>volume</label>
+        <input type="range" id="drumKickVolume" min="0" max="1" step="0.01" value="0.8">
+        <span class="drum-param-value" id="drumKickVolumeValue">0.80</span>
+      </div>
+    </div>
+    
+    <!-- SNARE DRUM -->
+    <div class="drum-voice-section" id="drumSnareSection">
+      <div class="drum-voice-header">
+        <span class="drum-voice-title">Snare</span>
+        <label class="drum-mute-toggle">
+          <input type="checkbox" id="drumSnareMute">
+          <span>mute</span>
+        </label>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>pitch</label>
+        <input type="range" id="drumSnarePitch" min="100" max="500" step="1" value="220">
+        <span class="drum-param-value" id="drumSnarePitchValue">220 Hz</span>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>decay</label>
+        <input type="range" id="drumSnareDecay" min="0.01" max="1" step="0.01" value="0.2">
+        <span class="drum-param-value" id="drumSnareDecayValue">0.20s</span>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>drive</label>
+        <input type="range" id="drumSnareDrive" min="0" max="1" step="0.01" value="0">
+        <span class="drum-param-value" id="drumSnareDriveValue">0.00</span>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>volume</label>
+        <input type="range" id="drumSnareVolume" min="0" max="1" step="0.01" value="0.6">
+        <span class="drum-param-value" id="drumSnareVolumeValue">0.60</span>
+      </div>
+    </div>
+    
+    <!-- HI-HAT -->
+    <div class="drum-voice-section" id="drumHatSection">
+      <div class="drum-voice-header">
+        <span class="drum-voice-title">Hi-Hat</span>
+        <label class="drum-mute-toggle">
+          <input type="checkbox" id="drumHatMute">
+          <span>mute</span>
+        </label>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>decay</label>
+        <input type="range" id="drumHatDecay" min="0.005" max="0.3" step="0.005" value="0.05">
+        <span class="drum-param-value" id="drumHatDecayValue">0.05s</span>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>tone</label>
+        <input type="range" id="drumHatHPF" min="4000" max="12000" step="100" value="7000">
+        <span class="drum-param-value" id="drumHatHPFValue">7000 Hz</span>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>drive</label>
+        <input type="range" id="drumHatDrive" min="0" max="1" step="0.01" value="0">
+        <span class="drum-param-value" id="drumHatDriveValue">0.00</span>
+      </div>
+      
+      <div class="drum-param-row">
+        <label>volume</label>
+        <input type="range" id="drumHatVolume" min="0" max="1" step="0.01" value="0.4">
+        <span class="drum-param-value" id="drumHatVolumeValue">0.40</span>
+      </div>
+    </div>
+    
+  </div>
+  
+  <!-- Global Controls -->
+  <div class="drum-global-controls">
+    <div class="drum-control-group">
+      <label>swing amount</label>
+      <div class="drum-param-row">
+        <input type="range" id="drumSwing" min="0" max="1" step="0.01" value="0">
+        <span class="drum-param-value" id="drumSwingValue">0%</span>
+      </div>
+    </div>
+    
+    <div class="drum-control-group">
+      <label>master volume</label>
+      <div class="drum-param-row">
+        <input type="range" id="drumMasterVolume" min="0" max="1" step="0.01" value="0.7">
+        <span class="drum-param-value" id="drumMasterVolumeValue">0.70</span>
+      </div>
+    </div>
+  </div>
+</div>
 
     <!-- JF #1 PANEL -->
     <div class="panel-section">
