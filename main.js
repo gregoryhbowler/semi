@@ -291,18 +291,27 @@ class Phase5App {
   this.drumSynth.getOutput().connect(this.drumMasterGain);
   this.drumMasterGain.connect(this.masterGain);
   
-  // Connect JF 4N to drum clock (4× faster than IDENTITY for 16th notes)
-  // With INTONE at overtone mode, 4N provides the 16th note subdivisions
+  // Source 1: JF
   this.jf1.get4NOutput().connect(this.jfDrumClockGain);
+  this.jfDrumClockGain.connect(this.drumSequencer.getStepClockInput()); // NEW
   
-  // Both clock sources feed into drum sequencer
-  this.jfDrumClockGain.connect(this.drumSequencer.getClockInput());
-  this.reneDrumClockGain.connect(this.drumSequencer.getClockInput());
+  // Source 2: René
+  this.reneDrumClockGain.connect(this.drumSequencer.getStepClockInput()); // NEW
   
-  // Set initial clock source
-  this.setDrumClockSource('jf');
+  // Source 3: Transpose Sequencer (NEW!)
+  this.transposeStepClockGain = this.audioContext.createGain();
+  this.transposeStepClockGain.gain.value = 0;
+  this.transposeSeq.getStepPulseOutput().connect(this.transposeStepClockGain);
+  this.transposeStepClockGain.connect(this.drumSequencer.getStepClockInput());
   
-  console.log('✓ Drum machine routing complete (using JF 4N for 16th note clock)');
+  // Reset pulse
+  this.transposeSeq.getResetPulseOutput().connect(this.drumSequencer.getResetClockInput());
+  
+  // Set defaults
+  this.setDrumClockSource('transpose'); // or 'jf' if you prefer
+  this.drumSequencer.setClockDivision(4);
+  
+  console.log('✓ Drum routing complete (3 clock sources + division)');
 }
 
   setDrumClockSource(source) {
