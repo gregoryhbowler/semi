@@ -9,7 +9,7 @@
   margin-bottom: var(--space-lg);
   border: 2px solid var(--border-light);
   box-shadow: var(--shadow-soft);
-  overflow: hidden; /* FIX: Prevent overflow */
+  overflow: hidden;
 }
 
 .pattern-system-header {
@@ -19,7 +19,7 @@
   margin-bottom: var(--space-md);
   padding-bottom: var(--space-sm);
   border-bottom: 1px solid var(--border-light);
-  flex-wrap: wrap; /* FIX: Allow wrapping on small screens */
+  flex-wrap: wrap;
   gap: var(--space-sm);
 }
 
@@ -29,14 +29,49 @@
   letter-spacing: 0.05em;
   color: var(--text-primary);
   text-transform: lowercase;
-  white-space: nowrap; /* FIX: Prevent title wrapping */
+  white-space: nowrap;
+}
+
+/* Mode indicator (Pattern Mode / Edit Mode) */
+.mode-indicator {
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+}
+
+.mode-indicator.edit-mode {
+  background: rgba(141, 196, 154, 0.2);
+  color: #5a9368;
+  border: 1px solid rgba(141, 196, 154, 0.4);
+}
+
+.mode-indicator.pattern-mode {
+  background: rgba(196, 154, 196, 0.2);
+  color: #8b5a9e;
+  border: 1px solid rgba(196, 154, 196, 0.4);
+  animation: pulse-mode 2s ease-in-out infinite;
+}
+
+@keyframes pulse-mode {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Mode toggle controls */
+.pattern-mode-toggle {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
 }
 
 .pattern-playback-toggle {
   display: flex;
   gap: var(--space-xs);
   align-items: center;
-  flex-shrink: 0; /* FIX: Prevent shrinking */
+  flex-shrink: 0;
 }
 
 .pattern-playback-btn {
@@ -49,7 +84,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap; /* FIX: Prevent text wrapping */
+  white-space: nowrap;
 }
 
 .pattern-playback-btn:hover {
@@ -69,8 +104,8 @@
   grid-template-columns: repeat(8, 1fr);
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
-  width: 100%; /* FIX: Ensure grid doesn't overflow */
-  overflow-x: auto; /* FIX: Allow horizontal scroll if needed */
+  width: 100%;
+  overflow-x: auto;
 }
 
 .pattern-slot {
@@ -84,7 +119,7 @@
   transition: all 0.2s ease;
   cursor: pointer;
   position: relative;
-  min-width: 80px; /* FIX: Ensure minimum width */
+  min-width: 80px;
 }
 
 .pattern-slot:hover {
@@ -98,7 +133,7 @@
   border-style: dashed;
 }
 
-/* NEW: Selected state (for Set/Copy/Paste operations) */
+/* Selected state (for Set/Copy/Paste operations) */
 .pattern-slot.selected {
   border-color: #7eb5d6;
   border-width: 3px;
@@ -109,15 +144,21 @@
   background: rgba(200, 220, 255, 0.6);
 }
 
-/* Current (playing) state */
-.pattern-slot.current {
+/* Playing state (actively playing in Pattern Mode) */
+.pattern-slot.playing {
   background: linear-gradient(135deg, #c49ac4, #7eb5d6);
   border-color: #6b5b95;
   box-shadow: 0 4px 16px rgba(107, 91, 149, 0.4);
+  animation: pulse-pattern 1.5s ease-in-out infinite;
 }
 
-.pattern-slot.current * {
+.pattern-slot.playing * {
   color: white !important;
+}
+
+@keyframes pulse-pattern {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 .pattern-slot-header {
@@ -138,14 +179,14 @@
   height: 8px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.2);
-  flex-shrink: 0; /* FIX: Prevent shrinking */
+  flex-shrink: 0;
 }
 
 .pattern-slot:not(.empty) .pattern-status {
   background: #8dc49a;
 }
 
-.pattern-slot.current .pattern-status {
+.pattern-slot.playing .pattern-status {
   background: white;
   animation: pulse-dot 1.5s ease-in-out infinite;
 }
@@ -161,7 +202,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-height: 1em; /* FIX: Ensure consistent height */
+  min-height: 1em;
 }
 
 .pattern-repeats {
@@ -174,7 +215,7 @@
 .pattern-repeats-label {
   font-size: 0.6rem;
   color: var(--text-dim);
-  flex-shrink: 0; /* FIX: Prevent shrinking */
+  flex-shrink: 0;
 }
 
 .pattern-repeats-input {
@@ -187,7 +228,7 @@
   font-weight: 600;
   text-align: center;
   color: var(--text-primary);
-  flex-shrink: 0; /* FIX: Prevent shrinking */
+  flex-shrink: 0;
 }
 
 .pattern-repeats-input:focus {
@@ -218,7 +259,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap; /* FIX: Prevent wrapping */
+  white-space: nowrap;
 }
 
 .pattern-mode-btn:hover {
@@ -243,7 +284,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
-  white-space: nowrap; /* FIX: Prevent wrapping */
+  white-space: nowrap;
 }
 
 .pattern-control-btn:hover {
@@ -264,45 +305,43 @@
   border-color: #c49ac4;
 }
 
-/* Context menu for pattern slots */
-.pattern-context-menu {
+/* Visual feedback for Pattern Mode vs Edit Mode */
+.rene-main-content.pattern-mode {
+  position: relative;
+}
+
+.rene-main-content.pattern-mode::before {
+  content: '';
   position: absolute;
-  top: 100%;
+  top: 0;
   left: 0;
-  margin-top: 4px;
-  background: white;
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lifted);
-  padding: 4px;
-  z-index: 100;
-  display: none;
-  min-width: 120px;
+  right: 0;
+  bottom: 0;
+  border: 3px solid rgba(196, 154, 196, 0.3);
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+  animation: border-pulse 2s ease-in-out infinite;
 }
 
-.pattern-context-menu.show {
-  display: block;
+@keyframes border-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
 }
 
-.pattern-context-item {
-  padding: 6px 10px;
-  font-size: 0.7rem;
-  color: var(--text-primary);
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.15s ease;
+.rene-main-content.edit-mode {
+  position: relative;
 }
 
-.pattern-context-item:hover {
-  background: rgba(107, 91, 149, 0.1);
-}
-
-.pattern-context-item.danger {
-  color: #c49ac4;
-}
-
-.pattern-context-item.danger:hover {
-  background: rgba(196, 154, 196, 0.1);
+.rene-main-content.edit-mode::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid rgba(141, 196, 154, 0.2);
+  border-radius: var(--radius-lg);
+  pointer-events: none;
 }
 
 /* Responsive */
