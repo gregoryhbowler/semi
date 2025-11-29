@@ -9,7 +9,7 @@ import {
   updateCurrentStepHighlight, 
   clearAllStepHighlights,
   updateKnobRotation
-} from './rene-ui-enhanced-upgraded.js';
+} from './rene-ui-enhanced.js';
 
 // René mode state and components
 let reneMode = false;
