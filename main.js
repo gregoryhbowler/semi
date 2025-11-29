@@ -1,5 +1,5 @@
-// main.js - Phase 5 + René Mode Integration + 7 LFOs
-// UPDATED: Includes 7 LFOs with dual destinations and comprehensive modulation routing
+// main.js - Phase 5 + René Mode Integration + 7 LFOs + Drum Machine
+// UPDATED: Includes 7 LFOs with dual destinations, comprehensive modulation routing, and drum machine
 
 import { JustFriendsNode } from './JustFriendsNode.js';
 import { JustFriendsOscNode } from './JustFriendsOscNode.js';
@@ -11,6 +11,8 @@ import { ModulationMatrixNode } from './outputs/ModulationMatrixNode.js';
 import { LFONode } from './LFONode.js';
 import { EnvelopeVCANode } from './EnvelopeVCANode.js';
 import { initReneMode, toggleReneMode } from './rene-integration-redesigned.js';
+import { DrumSynthNode } from './DrumSynthNode.js';
+import { DrumSequencerNode } from './DrumSequencerNode.js';
 
 class Phase5App {
   constructor() {
@@ -35,6 +37,16 @@ class Phase5App {
     this.modMatrix = null;
     this.destinationMap = null;
     this.jfMerger = null;
+    
+    // Drum machine
+    this.drumSequencer = null;
+    this.drumSynth = null;
+    this.drumMasterGain = null;
+    this.drumClockSource = 'jf'; // 'jf' or 'rene'
+    
+    // Clock pulse generators for drums
+    this.jfDrumClock = null;
+    this.reneDrumClock = null;
     
     // Oscillator selection state
     this.activeOscillator = 'mangrove';
@@ -90,7 +102,11 @@ class Phase5App {
       await this.audioContext.audioWorklet.addModule('./envelope-processor.js');
       await this.audioContext.audioWorklet.addModule('./lfo-processor.js');
       
-      console.log('%c✓ All AudioWorklets loaded - Phase 5 + LFOs', 'color: green; font-weight: bold');
+      // Load drum machine worklets
+      await this.audioContext.audioWorklet.addModule('./drum-synth-processor.js');
+      await this.audioContext.audioWorklet.addModule('./drum-sequencer-processor.js');
+      
+      console.log('%c✓ All AudioWorklets loaded including drums', 'color: green; font-weight: bold');
       
       await new Promise(resolve => setTimeout(resolve, 200));
 
@@ -141,6 +157,15 @@ class Phase5App {
       this.renePitchSource.offset.value = 0;
       this.renePitchSource.start();
 
+      // CREATE DRUM MACHINE
+      this.drumSequencer = new DrumSequencerNode(this.audioContext);
+      this.drumSynth = new DrumSynthNode(this.audioContext);
+      this.drumMasterGain = this.audioContext.createGain();
+      this.drumMasterGain.gain.value = 0.7;
+      
+      // Create clock pulse generators
+      this.createDrumClockSources();
+
       this.setupScope1();
       this.setupScope2();
 
@@ -188,7 +213,16 @@ class Phase5App {
       this.jf1.get6NOutput().connect(this.jfMerger, 0, 4);
       this.jfMerger.connect(this.modMatrix.getInput());
       
-      console.log('=== Phase 5 + LFOs ===');
+      // JF clock for drums: Use IDENTITY output
+      const jfToDrumGain = this.audioContext.createGain();
+      jfToDrumGain.gain.value = 1.0;
+      this.jf1.getIdentityOutput().connect(jfToDrumGain);
+      jfToDrumGain.connect(this.jfDrumClock.offset);
+      
+      // Setup drum routing
+      this.setupDrumRouting();
+      
+      console.log('=== Phase 5 + LFOs + Drums ===');
       console.log('Signal routing complete');
       
       // Build comprehensive destination map
@@ -207,11 +241,60 @@ class Phase5App {
       
       this.syncUIWithParameters();
       
-      console.log('%c✓ Phase 5 + LFOs initialized!', 'color: green; font-weight: bold');
+      console.log('%c✓ Phase 5 + LFOs + Drums initialized!', 'color: green; font-weight: bold');
       
     } catch (error) {
       console.error('Failed to initialize:', error);
       document.getElementById('status').textContent = 'Error: ' + error.message;
+    }
+  }
+
+  createDrumClockSources() {
+    // JF Clock: Create a constant source that will be modulated by JF
+    this.jfDrumClock = this.audioContext.createConstantSource();
+    this.jfDrumClock.offset.value = 0;
+    this.jfDrumClock.start();
+    
+    // René Clock: Create pulse generator
+    this.reneDrumClock = this.audioContext.createConstantSource();
+    this.reneDrumClock.offset.value = 0;
+    this.reneDrumClock.start();
+  }
+
+  setupDrumRouting() {
+    // Connect sequencer outputs to synth inputs
+    this.drumSequencer.getKickTriggerOutput().connect(this.drumSynth.getKickTriggerInput());
+    this.drumSequencer.getSnareTriggerOutput().connect(this.drumSynth.getSnareTriggerInput());
+    this.drumSequencer.getHatTriggerOutput().connect(this.drumSynth.getHatTriggerInput());
+    
+    // Connect synth output to master
+    this.drumSynth.getOutput().connect(this.drumMasterGain);
+    this.drumMasterGain.connect(this.masterGain);
+    
+    // Set initial clock source (JF by default)
+    this.setDrumClockSource('jf');
+    
+    console.log('✓ Drum machine routing complete');
+  }
+
+  setDrumClockSource(source) {
+    this.drumClockSource = source;
+    
+    // Disconnect current clock
+    try {
+      this.drumSequencer.getClockInput().disconnect();
+    } catch (e) {
+      // Ignore if nothing connected
+    }
+    
+    if (source === 'jf') {
+      // Route JF clock to drums
+      this.jfDrumClock.connect(this.drumSequencer.getClockInput());
+      console.log('✓ Drums clocked by Just Friends');
+    } else {
+      // Route René clock to drums
+      this.reneDrumClock.connect(this.drumSequencer.getClockInput());
+      console.log('✓ Drums clocked by René (16th notes)');
     }
   }
 
@@ -279,7 +362,6 @@ class Phase5App {
     this.lfos.forEach((lfo, i) => {
       this.destinationMap[`lfo${i + 1}.rate`] = lfo.params.rate;
       this.destinationMap[`lfo${i + 1}.phase`] = lfo.params.phase;
-      // Note: waveform is discrete, typically not modulated
     });
     
     console.log(`✓ Destination map built - ${Object.keys(this.destinationMap).length} parameters available`);
@@ -350,12 +432,11 @@ class Phase5App {
       lfo.setPhase(i / 7); // Stagger phases
     });
     
+    // Drum machine defaults are already set in the node constructors
+    console.log('Drum machine defaults configured');
     console.log('Default settings configured');
   }
 
-  // [Rest of the oscillator switching, FM mode, scope methods remain the same...]
-  // Keeping the existing methods for oscillator switching, FM routing, scopes, etc.
-  
   setActiveOscillator(osc) {
     if (osc === this.activeOscillator) return;
     
@@ -479,7 +560,6 @@ class Phase5App {
     }
   }
 
-  // [Scope methods remain unchanged]
   setupScope1() {
     this.scope1Analyser = this.audioContext.createAnalyser();
     this.scope1Analyser.fftSize = 2048;
@@ -723,7 +803,6 @@ class Phase5App {
   }
 
   generateDestinationOptions() {
-    // Build comprehensive optgroup structure
     const groups = [
       {
         label: 'Just Friends #1',
@@ -851,19 +930,15 @@ class Phase5App {
   }
 
   bindLFOControls() {
-    // LFO enable toggles
     document.querySelectorAll('.lfo-enable').forEach(checkbox => {
       checkbox.addEventListener('change', (e) => {
         const lfoIndex = parseInt(e.target.dataset.lfo);
         const enabled = e.target.checked;
         const module = document.querySelector(`.lfo-module[data-lfo="${lfoIndex}"]`);
         module.classList.toggle('active', enabled);
-        
-        // Actual enable/disable logic handled per-destination
       });
     });
     
-    // LFO rate controls
     document.querySelectorAll('.lfo-rate').forEach(slider => {
       slider.addEventListener('input', (e) => {
         const lfoIndex = parseInt(e.target.dataset.lfo);
@@ -875,7 +950,6 @@ class Phase5App {
       });
     });
     
-    // LFO waveform controls
     document.querySelectorAll('.lfo-waveform').forEach(select => {
       select.addEventListener('change', (e) => {
         const lfoIndex = parseInt(e.target.dataset.lfo);
@@ -884,7 +958,6 @@ class Phase5App {
       });
     });
     
-    // LFO phase controls
     document.querySelectorAll('.lfo-phase').forEach(slider => {
       slider.addEventListener('input', (e) => {
         const lfoIndex = parseInt(e.target.dataset.lfo);
@@ -896,7 +969,6 @@ class Phase5App {
       });
     });
     
-    // Destination enable toggles
     document.querySelectorAll('.lfo-dest-enable').forEach(checkbox => {
       checkbox.addEventListener('change', (e) => {
         const lfoIndex = parseInt(e.target.dataset.lfo);
@@ -912,7 +984,6 @@ class Phase5App {
       });
     });
     
-    // Destination parameter selection
     document.querySelectorAll('.lfo-dest-param').forEach(select => {
       select.addEventListener('change', (e) => {
         const lfoIndex = parseInt(e.target.dataset.lfo);
@@ -930,7 +1001,6 @@ class Phase5App {
           return;
         }
         
-        // Get current depth, offset, mode
         const depthSlider = document.querySelector(
           `.lfo-dest-depth[data-lfo="${lfoIndex}"][data-dest="${destIndex}"]`
         );
@@ -950,7 +1020,6 @@ class Phase5App {
       });
     });
     
-    // Destination depth controls
     document.querySelectorAll('.lfo-dest-depth').forEach(slider => {
       slider.addEventListener('input', (e) => {
         const lfoIndex = parseInt(e.target.dataset.lfo);
@@ -966,7 +1035,6 @@ class Phase5App {
       });
     });
     
-    // Destination offset controls
     document.querySelectorAll('.lfo-dest-offset').forEach(slider => {
       slider.addEventListener('input', (e) => {
         const lfoIndex = parseInt(e.target.dataset.lfo);
@@ -982,7 +1050,6 @@ class Phase5App {
       });
     });
     
-    // Destination mode controls
     document.querySelectorAll('.lfo-dest-mode').forEach(select => {
       select.addEventListener('change', (e) => {
         const lfoIndex = parseInt(e.target.dataset.lfo);
@@ -993,9 +1060,6 @@ class Phase5App {
       });
     });
   }
-
-  // [Rest of mod matrix, transpose sequencer UI, and other methods remain the same...]
-  // Keeping existing code for mod matrix, sequencer, etc.
 
   generateModSlotHTML(slotIndex) {
     const slopeNames = ['2N', '3N', '4N', '5N', '6N'];
@@ -1097,7 +1161,6 @@ class Phase5App {
   }
 
   setupSequencerListeners() {
-    // [Keep existing sequencer listener code...]
     document.querySelectorAll('.seq-cell-toggle').forEach(toggle => {
       toggle.addEventListener('change', (e) => {
         const step = parseInt(e.target.dataset.step);
@@ -1277,6 +1340,163 @@ class Phase5App {
     }
     
     this.modMatrix.setDestination(slot, audioParam);
+  }
+
+  bindDrumControls() {
+    // Clock source selector
+    const clockSource = document.getElementById('drumClockSource');
+    clockSource?.addEventListener('change', (e) => {
+      this.setDrumClockSource(e.target.value);
+    });
+    
+    // Randomization buttons
+    document.getElementById('drumRandomizeAll')?.addEventListener('click', () => {
+      this.drumSynth.randomizeKit();
+      this.drumSequencer.randomizePattern();
+      this.drumSequencer.randomizeGroove();
+      this.updateDrumUI();
+    });
+    
+    document.getElementById('drumRandomizeKit')?.addEventListener('click', () => {
+      this.drumSynth.randomizeKit();
+      this.updateDrumUI();
+    });
+    
+    document.getElementById('drumRandomizePattern')?.addEventListener('click', () => {
+      this.drumSequencer.randomizePattern();
+    });
+    
+    document.getElementById('drumRandomizeGroove')?.addEventListener('click', () => {
+      this.drumSequencer.randomizeGroove();
+    });
+    
+    // Individual voice randomization
+    document.getElementById('drumRandomizeKick')?.addEventListener('click', () => {
+      this.drumSynth.randomizeKick();
+      this.updateDrumUI();
+    });
+    
+    document.getElementById('drumRandomizeSnare')?.addEventListener('click', () => {
+      this.drumSynth.randomizeSnare();
+      this.updateDrumUI();
+    });
+    
+    document.getElementById('drumRandomizeHat')?.addEventListener('click', () => {
+      this.drumSynth.randomizeHat();
+      this.updateDrumUI();
+    });
+    
+    // Individual pattern randomization
+    document.getElementById('drumRandomizeKickPattern')?.addEventListener('click', () => {
+      this.drumSequencer.randomizeKickPattern();
+    });
+    
+    document.getElementById('drumRandomizeSnarePattern')?.addEventListener('click', () => {
+      this.drumSequencer.randomizeSnarePattern();
+    });
+    
+    document.getElementById('drumRandomizeHatPattern')?.addEventListener('click', () => {
+      this.drumSequencer.randomizeHatPattern();
+    });
+    
+    // Kick controls
+    this.bindDrumParam('drumKickPitch', (v) => this.drumSynth.setKickPitch(v), ' Hz');
+    this.bindDrumParam('drumKickDecay', (v) => this.drumSynth.setKickDecay(v), 's');
+    this.bindDrumParam('drumKickDrive', (v) => this.drumSynth.setKickDrive(v));
+    this.bindDrumParam('drumKickVolume', (v) => this.drumSynth.setKickVolume(v));
+    
+    // Snare controls
+    this.bindDrumParam('drumSnarePitch', (v) => this.drumSynth.setSnarePitch(v), ' Hz');
+    this.bindDrumParam('drumSnareDecay', (v) => this.drumSynth.setSnareDecay(v), 's');
+    this.bindDrumParam('drumSnareDrive', (v) => this.drumSynth.setSnareDrive(v));
+    this.bindDrumParam('drumSnareVolume', (v) => this.drumSynth.setSnareVolume(v));
+    
+    // Hat controls
+    this.bindDrumParam('drumHatDecay', (v) => this.drumSynth.setHatDecay(v), 's');
+    this.bindDrumParam('drumHatHPF', (v) => this.drumSynth.setHatHPF(v), ' Hz');
+    this.bindDrumParam('drumHatDrive', (v) => this.drumSynth.setHatDrive(v));
+    this.bindDrumParam('drumHatVolume', (v) => this.drumSynth.setHatVolume(v));
+    
+    // Global controls
+    this.bindDrumParam('drumSwing', (v) => {
+      this.drumSequencer.setSwing(v);
+      const display = document.getElementById('drumSwingValue');
+      if (display) display.textContent = `${Math.round(v * 100)}%`;
+    });
+    
+    this.bindDrumParam('drumMasterVolume', (v) => {
+      this.drumMasterGain.gain.value = v;
+    });
+    
+    // Mute toggles
+    document.getElementById('drumKickMute')?.addEventListener('change', (e) => {
+      this.drumSynth.setKickVolume(e.target.checked ? 0 : 0.8);
+      document.getElementById('drumKickSection')?.classList.toggle('muted', e.target.checked);
+    });
+    
+    document.getElementById('drumSnareMute')?.addEventListener('change', (e) => {
+      this.drumSynth.setSnareVolume(e.target.checked ? 0 : 0.6);
+      document.getElementById('drumSnareSection')?.classList.toggle('muted', e.target.checked);
+    });
+    
+    document.getElementById('drumHatMute')?.addEventListener('change', (e) => {
+      this.drumSynth.setHatVolume(e.target.checked ? 0 : 0.4);
+      document.getElementById('drumHatSection')?.classList.toggle('muted', e.target.checked);
+    });
+  }
+
+  bindDrumParam(id, callback, suffix = '') {
+    const slider = document.getElementById(id);
+    const display = document.getElementById(id + 'Value');
+    
+    slider?.addEventListener('input', (e) => {
+      const value = parseFloat(e.target.value);
+      callback(value);
+      
+      if (display) {
+        let displayValue = value.toFixed(2);
+        if (suffix === ' Hz') displayValue = Math.round(value) + suffix;
+        else if (suffix === 's') displayValue = value.toFixed(2) + suffix;
+        else if (suffix === '') displayValue = value.toFixed(2);
+        else displayValue += suffix;
+        
+        display.textContent = displayValue;
+      }
+    });
+  }
+
+  updateDrumUI() {
+    if (!this.drumSynth || !this.drumSynth.params) return;
+    
+    const params = [
+      ['drumKickPitch', this.drumSynth.params.kickPitch.value, ' Hz'],
+      ['drumKickDecay', this.drumSynth.params.kickDecay.value, 's'],
+      ['drumKickDrive', this.drumSynth.params.kickDrive.value, ''],
+      ['drumKickVolume', this.drumSynth.params.kickVolume.value, ''],
+      ['drumSnarePitch', this.drumSynth.params.snarePitch.value, ' Hz'],
+      ['drumSnareDecay', this.drumSynth.params.snareDecay.value, 's'],
+      ['drumSnareDrive', this.drumSynth.params.snareDrive.value, ''],
+      ['drumSnareVolume', this.drumSynth.params.snareVolume.value, ''],
+      ['drumHatDecay', this.drumSynth.params.hatDecay.value, 's'],
+      ['drumHatHPF', this.drumSynth.params.hatHPF.value, ' Hz'],
+      ['drumHatDrive', this.drumSynth.params.hatDrive.value, ''],
+      ['drumHatVolume', this.drumSynth.params.hatVolume.value, '']
+    ];
+    
+    params.forEach(([id, value, suffix]) => {
+      const slider = document.getElementById(id);
+      const display = document.getElementById(id + 'Value');
+      
+      if (slider) slider.value = value;
+      if (display) {
+        let displayValue;
+        if (suffix === ' Hz') displayValue = Math.round(value) + suffix;
+        else if (suffix === 's') displayValue = value.toFixed(2) + suffix;
+        else displayValue = value.toFixed(2);
+        
+        display.textContent = displayValue;
+      }
+    });
   }
 
   setScale(scaleName, root = 0) {
@@ -1526,6 +1746,9 @@ class Phase5App {
     this.bindKnob('masterVolume', (val) => {
       if (this.masterGain) this.masterGain.gain.value = val;
     });
+    
+    // Bind drum controls
+    this.bindDrumControls();
   }
 
   bindKnob(id, callback) {
