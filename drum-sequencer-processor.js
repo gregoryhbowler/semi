@@ -38,7 +38,7 @@ class DrumSequencerProcessor extends AudioWorkletProcessor {
     this.grooveMask = [1, 0, 1, 1]; // Default: mute the 'e'
     
     // Initialize patterns
-    this.generatePattern();
+    //this.generatePattern();
     
     // Message handling
     this.port.onmessage = (event) => {
