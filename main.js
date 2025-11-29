@@ -248,7 +248,7 @@ class Phase5App {
   createDrumClockSources() {
     // JF Clock: Direct connection from JF IDENTITY output
     this.jfDrumClockGain = this.audioContext.createGain();
-    this.jfDrumClockGain.gain.value = 10.0;
+    this.jfDrumClockGain.gain.value = 40.0;
     
     // René Clock: Gain node that will receive pulses from René callback
     this.reneDrumClockGain = this.audioContext.createGain();
