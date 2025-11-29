@@ -1,5 +1,6 @@
 // main.js - Phase 5 + René Mode Integration + 7 LFOs + Drum Machine
 // UPDATED: Includes 7 LFOs with dual destinations, comprehensive modulation routing, and drum machine
+// FIXED: Drum clock routing uses gain nodes for proper crossfading
 
 import { JustFriendsNode } from './JustFriendsNode.js';
 import { JustFriendsOscNode } from './JustFriendsOscNode.js';
@@ -44,9 +45,10 @@ class Phase5App {
     this.drumMasterGain = null;
     this.drumClockSource = 'jf'; // 'jf' or 'rene'
     
-    // Clock pulse generators for drums
-    this.jfDrumClock = null;
-    this.reneDrumClock = null;
+    // Clock pulse generators for drums (FIXED: using gain nodes)
+    this.jfDrumClockGain = null;
+    this.reneDrumClockGain = null;
+    this.reneClockBuffer = null;
     
     // Oscillator selection state
     this.activeOscillator = 'mangrove';
@@ -163,7 +165,7 @@ class Phase5App {
       this.drumMasterGain = this.audioContext.createGain();
       this.drumMasterGain.gain.value = 0.7;
       
-      // Create clock pulse generators
+      // Create clock pulse generators (FIXED: using gain nodes)
       this.createDrumClockSources();
 
       this.setupScope1();
@@ -213,13 +215,7 @@ class Phase5App {
       this.jf1.get6NOutput().connect(this.jfMerger, 0, 4);
       this.jfMerger.connect(this.modMatrix.getInput());
       
-      // JF clock for drums: Use IDENTITY output
-      const jfToDrumGain = this.audioContext.createGain();
-      jfToDrumGain.gain.value = 1.0;
-      this.jf1.getIdentityOutput().connect(jfToDrumGain);
-      jfToDrumGain.connect(this.jfDrumClock.offset);
-      
-      // Setup drum routing
+      // Setup drum routing (FIXED: now handles gain-based clock routing)
       this.setupDrumRouting();
       
       console.log('=== Phase 5 + LFOs + Drums ===');
@@ -250,15 +246,39 @@ class Phase5App {
   }
 
   createDrumClockSources() {
-    // JF Clock: Create a constant source that will be modulated by JF
-    this.jfDrumClock = this.audioContext.createConstantSource();
-    this.jfDrumClock.offset.value = 0;
-    this.jfDrumClock.start();
+    // JF Clock: Direct connection from JF IDENTITY output
+    this.jfDrumClockGain = this.audioContext.createGain();
+    this.jfDrumClockGain.gain.value = 1.0;
     
-    // René Clock: Create pulse generator
-    this.reneDrumClock = this.audioContext.createConstantSource();
-    this.reneDrumClock.offset.value = 0;
-    this.reneDrumClock.start();
+    // René Clock: Gain node that will receive pulses from René callback
+    this.reneDrumClockGain = this.audioContext.createGain();
+    this.reneDrumClockGain.gain.value = 0; // Start silent
+    
+    // Create a buffer source for René clock pulses
+    this.createReneClockBuffer();
+  }
+
+  createReneClockBuffer() {
+    // Create a tiny buffer with a single pulse
+    const sampleRate = this.audioContext.sampleRate;
+    const pulseDuration = 0.005; // 5ms pulse
+    const bufferSize = Math.ceil(sampleRate * pulseDuration);
+    
+    this.reneClockBuffer = this.audioContext.createBuffer(1, bufferSize, sampleRate);
+    const data = this.reneClockBuffer.getChannelData(0);
+    
+    // Fill buffer with pulse (1.0 for entire duration)
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = 1.0;
+    }
+  }
+
+  triggerReneClockPulse(time) {
+    // Create a buffer source to play the pulse
+    const source = this.audioContext.createBufferSource();
+    source.buffer = this.reneClockBuffer;
+    source.connect(this.reneDrumClockGain);
+    source.start(time);
   }
 
   setupDrumRouting() {
@@ -271,6 +291,13 @@ class Phase5App {
     this.drumSynth.getOutput().connect(this.drumMasterGain);
     this.drumMasterGain.connect(this.masterGain);
     
+    // Connect JF IDENTITY directly to JF drum clock path
+    this.jf1.getIdentityOutput().connect(this.jfDrumClockGain);
+    
+    // Both clock sources feed into drum sequencer (use gains to switch)
+    this.jfDrumClockGain.connect(this.drumSequencer.getClockInput());
+    this.reneDrumClockGain.connect(this.drumSequencer.getClockInput());
+    
     // Set initial clock source (JF by default)
     this.setDrumClockSource('jf');
     
@@ -280,20 +307,30 @@ class Phase5App {
   setDrumClockSource(source) {
     this.drumClockSource = source;
     
-    // Disconnect current clock
-    try {
-      this.drumSequencer.getClockInput().disconnect();
-    } catch (e) {
-      // Ignore if nothing connected
-    }
+    const now = this.audioContext.currentTime;
+    const fadeTime = 0.01;
     
     if (source === 'jf') {
-      // Route JF clock to drums
-      this.jfDrumClock.connect(this.drumSequencer.getClockInput());
+      // Enable JF clock, disable René clock
+      this.jfDrumClockGain.gain.cancelScheduledValues(now);
+      this.jfDrumClockGain.gain.setValueAtTime(this.jfDrumClockGain.gain.value, now);
+      this.jfDrumClockGain.gain.linearRampToValueAtTime(1.0, now + fadeTime);
+      
+      this.reneDrumClockGain.gain.cancelScheduledValues(now);
+      this.reneDrumClockGain.gain.setValueAtTime(this.reneDrumClockGain.gain.value, now);
+      this.reneDrumClockGain.gain.linearRampToValueAtTime(0, now + fadeTime);
+      
       console.log('✓ Drums clocked by Just Friends');
     } else {
-      // Route René clock to drums
-      this.reneDrumClock.connect(this.drumSequencer.getClockInput());
+      // Enable René clock, disable JF clock
+      this.jfDrumClockGain.gain.cancelScheduledValues(now);
+      this.jfDrumClockGain.gain.setValueAtTime(this.jfDrumClockGain.gain.value, now);
+      this.jfDrumClockGain.gain.linearRampToValueAtTime(0, now + fadeTime);
+      
+      this.reneDrumClockGain.gain.cancelScheduledValues(now);
+      this.reneDrumClockGain.gain.setValueAtTime(this.reneDrumClockGain.gain.value, now);
+      this.reneDrumClockGain.gain.linearRampToValueAtTime(1.0, now + fadeTime);
+      
       console.log('✓ Drums clocked by René (16th notes)');
     }
   }
