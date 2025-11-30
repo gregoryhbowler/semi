@@ -1,17 +1,4 @@
 // drum-sequencer-processor.js
-// Clock-division drum sequencer
-// Subdivides incoming step pulses by clockDivision parameter
-// Resets to step 0 on reset pulse
-//
-// INPUTS:
-// Input 0: Step clock pulses (from transpose sequencer)
-// Input 1: Reset pulses (from transpose sequencer)
-//
-// OUTPUTS (3 channels):
-// Channel 0: Kick trigger
-// Channel 1: Snare trigger
-// Channel 2: Hi-hat trigger
-
 class DrumSequencerProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
@@ -23,24 +10,25 @@ class DrumSequencerProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     
-    // Clock subdivision state
-    // this.subdivisionCounter = 0; COMMENTING THIS OUT TO SEE IF IT WORKS BUT IF IT DOESN'T YOU SHOULD REMOVE THE COMMENT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    this.clockDivision = 4; // How many drum steps per transpose step
-    
     // Pulse detection
     this.prevStepPulse = 0;
     this.prevResetPulse = 0;
     this.pulseThreshold = 0.5;
     
+    // Timing state
+    this.samplesSinceLastPulse = 0;
+    this.samplesPerDrumStep = 0;
+    this.nextStepAt = 0;
+    
     // Sequencer state
-    this.currentStep = 0; // 0-15 (or less if clockDivision < 16)
-    this.stepPhase = 0; // Sample counter within current step
+    this.currentStep = 0;
     this.steps = 16;
+    this.clockDivision = 4;
     
     // Swing state
-    this.swingAmount = 0; // 0-1
+    this.swingAmount = 0;
     
-    // Pattern arrays (1 = trigger, 0 = silence)
+    // Pattern arrays
     this.kickPattern = new Array(16).fill(0);
     this.snarePattern = new Array(16).fill(0);
     this.hatPattern = new Array(16).fill(0);
@@ -74,11 +62,10 @@ class DrumSequencerProcessor extends AudioWorkletProcessor {
     
     this.sampleCount = 0;
     this.debugCounter = 0;
-    this.debugInterval = sampleRate * 2; // Every 2 seconds
+    this.debugInterval = sampleRate * 2;
   }
 
   detectPulse(currentSample, prevSample) {
-    // Detect rising edge
     return prevSample < this.pulseThreshold && currentSample >= this.pulseThreshold;
   }
 
@@ -88,20 +75,9 @@ class DrumSequencerProcessor extends AudioWorkletProcessor {
 
   resetDrumSequence() {
     this.currentStep = 0;
-    this.subdivisionCounter = 0;
+    this.samplesSinceLastPulse = 0;
+    this.nextStepAt = 0;
     console.log('[Drum Seq] Reset to step 0');
-  }
-
-  getSwingDelay(step) {
-    // Apply swing to every other subdivision
-    const subDiv = step % 4;
-    
-    if (subDiv === 1 || subDiv === 3) {
-      // These are the swung notes
-      return this.swingAmount * 0.3; // Max 30% delay
-    }
-    
-    return 0;
   }
 
   process(inputs, outputs, parameters) {
@@ -118,46 +94,54 @@ class DrumSequencerProcessor extends AudioWorkletProcessor {
     
     // Get parameters
     this.swingAmount = parameters.swing[0];
-    this.clockDivision = Math.max(1, Math.min(16, Math.round(parameters.clockDivision[0])));
+    const newDivision = Math.max(1, Math.min(16, Math.round(parameters.clockDivision[0])));
     
     for (let i = 0; i < kickOut.length; i++) {
       this.sampleCount++;
+      this.samplesSinceLastPulse++;
       
-      let stepAdvanced = false;
+      let shouldTrigger = false;
       
       // Detect reset pulse (has priority)
       if (resetClockIn && this.detectPulse(resetClockIn[i], this.prevResetPulse)) {
         this.resetDrumSequence();
-        stepAdvanced = true;
+        shouldTrigger = true;
         this.prevResetPulse = resetClockIn[i];
       } else {
         if (resetClockIn) this.prevResetPulse = resetClockIn[i];
       }
       
-      // Detect step clock pulse
+      // Detect step clock pulse from transpose sequencer
       if (stepClockIn && this.detectPulse(stepClockIn[i], this.prevStepPulse)) {
-        // Clock division determines how many drum steps advance per input pulse
-        // division=1: advance 1 step per pulse (slowest)
-        // division=4: advance 4 steps per pulse (default)  
-        // division=16: advance 16 steps per pulse (fastest)
-        const actualSteps = this.clockDivision * 8;  // ← ADD THIS LINE
-        
-        for (let div = 0; div < actualSteps; div++) { 
-          this.advanceDrumStep();
-          
-          // Trigger on first subdivision
-          if (div === 0) {
-            stepAdvanced = true;
-          }
+        // Calculate how many samples should elapse per drum step
+        // Higher clockDivision = more drum steps per input pulse = faster drums
+        if (this.samplesSinceLastPulse > 0) {
+          this.samplesPerDrumStep = this.samplesSinceLastPulse / newDivision;
         }
+        
+        this.clockDivision = newDivision;
+        this.samplesSinceLastPulse = 0;
+        this.nextStepAt = this.samplesPerDrumStep;
+        
+        // Trigger immediately on the pulse
+        shouldTrigger = true;
+        this.advanceDrumStep();
         
         this.prevStepPulse = stepClockIn[i];
       } else {
         if (stepClockIn) this.prevStepPulse = stepClockIn[i];
       }
       
-      // Trigger on step advance
-      if (stepAdvanced) {
+      // Check if it's time for the next internal subdivision
+      if (!shouldTrigger && this.samplesPerDrumStep > 0 && 
+          this.samplesSinceLastPulse >= this.nextStepAt) {
+        shouldTrigger = true;
+        this.advanceDrumStep();
+        this.nextStepAt += this.samplesPerDrumStep;
+      }
+      
+      // Output triggers
+      if (shouldTrigger) {
         kickOut[i] = this.kickPattern[this.currentStep];
         snareOut[i] = this.snarePattern[this.currentStep];
         hatOut[i] = this.hatPattern[this.currentStep];
@@ -174,8 +158,9 @@ class DrumSequencerProcessor extends AudioWorkletProcessor {
       this.debugCounter = 0;
       console.log('[Drum Sequencer]', {
         step: this.currentStep,
-        division: `${this.clockDivision}× (${this.clockDivision} steps per pulse)`,
-        swing: this.swingAmount.toFixed(2)
+        division: this.clockDivision,
+        samplesPerStep: this.samplesPerDrumStep.toFixed(1),
+        effectiveBPM: this.samplesPerDrumStep > 0 ? ((sampleRate * 60) / (this.samplesPerDrumStep * 16)).toFixed(1) : 'N/A'
       });
     }
     
