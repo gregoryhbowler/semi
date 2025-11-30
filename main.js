@@ -18,8 +18,8 @@ import { DrumSequencerNode } from './DrumSequencerNode.js';
 import { DJEqualizerUI } from './DJEqualizerUI.js';
 import { SaturationEffectUI } from './SaturationEffectUI.js';
 import { StandaloneMimeophon } from './mimeophon-standalone.js';
-import GreyholeNode from './GreyholeNode.js';
-import ZitaReverb from './ZitaReverb.js';
+import { GreyholeNode } from './GreyholeNode.js';
+import { ZitaReverb } from './ZitaReverb.js';
 
 class Phase5App {
   constructor() {
