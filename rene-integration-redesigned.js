@@ -50,11 +50,12 @@ export async function initReneMode(app) {
       // Convert 0-1 value to BIPOLAR pitch CV (centered at 0.5)
       // 0 = -2 octaves, 0.5 = center (no transpose), 1 = +2 octaves
       const bipolarValue = (value - 0.5) * 2; // -1 to +1
-      const voltage = bipolarValue * 2.0; // -2V to +2V (±2 octaves in 1V/oct)
-      const normalized = voltage / 5.0; // Normalize for Web Audio (-0.4 to +0.4)
+      const octaves = bipolarValue * 2.0; // -2 to +2 octaves
       
+      // Send directly to quantizer - quantizer will detect negative values
+      // and treat them as octave offsets (with depth=1)
       if (app.renePitchSource) {
-        app.renePitchSource.offset.setValueAtTime(normalized, time);
+        app.renePitchSource.offset.setValueAtTime(octaves, time);
       }
       
       updateCurrentStepHighlight('note', step);
