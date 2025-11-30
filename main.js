@@ -921,8 +921,8 @@ class Phase5App {
     }
     
     // Add all effects UIs
-    container.appendChild(this.djEQ.createUI());
-    container.appendChild(this.saturation.createUI());
+    container.appendChild(this.createDJEQUI());
+    container.appendChild(this.createSaturationUI());
     container.appendChild(this.mimeophon.createUI());
     container.appendChild(this.createGreyholeUI());
     container.appendChild(this.createZitaUI());
@@ -1207,6 +1207,184 @@ class Phase5App {
     
     return container;
   }
+
+  createDJEQUI() {
+  const container = document.createElement('div');
+  container.className = 'effect-module djeq';
+  
+  container.innerHTML = `
+    <div class="effect-header">
+      <h3 class="effect-title">DJ Equalizer</h3>
+      <label class="effect-bypass">
+        <input type="checkbox" class="bypass-toggle">
+        <span>Bypass</span>
+      </label>
+    </div>
+    
+    <div class="effect-controls">
+      <div class="param-control">
+        <label>Low Gain (-24 to +12 dB)</label>
+        <input type="range" min="-24" max="12" step="0.5" value="0" data-param="lowGain">
+        <span class="param-value">0.0 dB</span>
+      </div>
+      
+      <div class="param-control">
+        <label>Low Kill</label>
+        <label class="toggle-switch">
+          <input type="checkbox" data-param="lowKill">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="param-control">
+        <label>Mid Gain (-24 to +12 dB)</label>
+        <input type="range" min="-24" max="12" step="0.5" value="0" data-param="midGain">
+        <span class="param-value">0.0 dB</span>
+      </div>
+      
+      <div class="param-control">
+        <label>Mid Kill</label>
+        <label class="toggle-switch">
+          <input type="checkbox" data-param="midKill">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="param-control">
+        <label>High Gain (-24 to +12 dB)</label>
+        <input type="range" min="-24" max="12" step="0.5" value="0" data-param="highGain">
+        <span class="param-value">0.0 dB</span>
+      </div>
+      
+      <div class="param-control">
+        <label>High Kill</label>
+        <label class="toggle-switch">
+          <input type="checkbox" data-param="highKill">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+  `;
+  
+  // Bind controls
+  container.querySelectorAll('input[type="range"]').forEach(slider => {
+    slider.addEventListener('input', (e) => {
+      const param = e.target.dataset.param;
+      const value = parseFloat(e.target.value);
+      
+      if (param === 'lowGain') {
+        this.djEQ.setLowGain(value);
+        e.target.nextElementSibling.textContent = `${value.toFixed(1)} dB`;
+      } else if (param === 'midGain') {
+        this.djEQ.setMidGain(value);
+        e.target.nextElementSibling.textContent = `${value.toFixed(1)} dB`;
+      } else if (param === 'highGain') {
+        this.djEQ.setHighGain(value);
+        e.target.nextElementSibling.textContent = `${value.toFixed(1)} dB`;
+      }
+    });
+  });
+  
+  container.querySelectorAll('input[type="checkbox"][data-param]').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const param = e.target.dataset.param;
+      const value = e.target.checked;
+      
+      if (param === 'lowKill') {
+        this.djEQ.setLowKill(value);
+      } else if (param === 'midKill') {
+        this.djEQ.setMidKill(value);
+      } else if (param === 'highKill') {
+        this.djEQ.setHighKill(value);
+      }
+    });
+  });
+  
+  return container;
+}
+
+createSaturationUI() {
+  const container = document.createElement('div');
+  container.className = 'effect-module saturation';
+  
+  container.innerHTML = `
+    <div class="effect-header">
+      <h3 class="effect-title">Saturation</h3>
+      <label class="effect-bypass">
+        <input type="checkbox" class="bypass-toggle">
+        <span>Bypass</span>
+      </label>
+    </div>
+    
+    <div class="effect-controls">
+      <div class="param-control">
+        <label>Mode</label>
+        <select data-param="mode">
+          <option value="tape" selected>Tape</option>
+          <option value="triode">Triode</option>
+          <option value="pentode">Pentode</option>
+          <option value="transformer">Transformer</option>
+        </select>
+      </div>
+      
+      <div class="param-control">
+        <label>Drive</label>
+        <input type="range" min="0" max="1" step="0.01" value="0" data-param="drive">
+        <span class="param-value">0%</span>
+      </div>
+      
+      <div class="param-control">
+        <label>Bias</label>
+        <input type="range" min="-1" max="1" step="0.01" value="0" data-param="bias">
+        <span class="param-value">0</span>
+      </div>
+      
+      <div class="param-control">
+        <label>Mix</label>
+        <input type="range" min="0" max="1" step="0.01" value="1" data-param="mix">
+        <span class="param-value">100%</span>
+      </div>
+      
+      <div class="param-control">
+        <label>Harmonics</label>
+        <select data-param="harmonics">
+          <option value="even" selected>Even</option>
+          <option value="odd">Odd</option>
+          <option value="both">Both</option>
+        </select>
+      </div>
+    </div>
+  `;
+  
+  // Bind controls
+  container.querySelector('select[data-param="mode"]').addEventListener('change', (e) => {
+    this.saturation.setMode(e.target.value);
+  });
+  
+  container.querySelector('select[data-param="harmonics"]').addEventListener('change', (e) => {
+    this.saturation.setHarmonics(e.target.value);
+  });
+  
+  container.querySelectorAll('input[type="range"]').forEach(slider => {
+    slider.addEventListener('input', (e) => {
+      const param = e.target.dataset.param;
+      const value = parseFloat(e.target.value);
+      
+      if (param === 'drive') {
+        this.saturation.setDrive(value);
+        e.target.nextElementSibling.textContent = `${Math.round(value * 100)}%`;
+      } else if (param === 'bias') {
+        this.saturation.setBias(value);
+        e.target.nextElementSibling.textContent = value.toFixed(2);
+      } else if (param === 'mix') {
+        this.saturation.setMix(value);
+        e.target.nextElementSibling.textContent = `${Math.round(value * 100)}%`;
+      }
+    });
+  });
+  
+  return container;
+}
 
   // ========== LFO UI GENERATION ==========
 
