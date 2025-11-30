@@ -301,6 +301,10 @@ console.log('Signal routing complete');
       this.buildDestinationMap();
       
       this.configureDefaults();
+
+      // Initialize effects UI
+      this.initEffectsUI();
+      
       
       await initReneMode(this);
       
