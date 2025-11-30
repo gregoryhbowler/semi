@@ -209,6 +209,8 @@ class Phase5App {
       // Zita Reverb
       this.zitaReverb = new ZitaReverb(this.audioContext);
       await this.zitaReverb.init('./zita-reverb-processor.js');
+
+      this.initEffectsUI();
       
       console.log('✓ Effects chain created');
 
@@ -2219,7 +2221,7 @@ createSaturationUI() {
         this.createSequencerUI();
         this.initLFOUI();
         this.initDrumStepSequencerUI();
-        this.initEffectsUI();
+
       });
     } else {
       this.bindControls();
@@ -2227,7 +2229,7 @@ createSaturationUI() {
       this.createSequencerUI();
       this.initLFOUI();
       this.initDrumStepSequencerUI();
-      this.initEffectsUI();
+
     }
   }
 
