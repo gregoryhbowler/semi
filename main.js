@@ -109,176 +109,188 @@ class Phase5App {
 
   async init() {
     try {
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // Load AudioWorklet processors
-      await this.audioContext.audioWorklet.addModule('./just-friends-processor.js');
-      await this.audioContext.audioWorklet.addModule('./just-friends-osc-processor.js');
-      await this.audioContext.audioWorklet.addModule('./quantizer-processor.js');
-      await this.audioContext.audioWorklet.addModule('./transpose-sequencer-processor.js');
-      await this.audioContext.audioWorklet.addModule('./mangrove-processor.js');
-      await this.audioContext.audioWorklet.addModule('./three-sisters-processor.js');
-      await this.audioContext.audioWorklet.addModule('./modulation-matrix-processor.js');
-      await this.audioContext.audioWorklet.addModule('./envelope-processor.js');
-      await this.audioContext.audioWorklet.addModule('./lfo-processor.js');
-      
-      // Load drum machine worklets
-      await this.audioContext.audioWorklet.addModule('./drum-synth-processor.js');
-      await this.audioContext.audioWorklet.addModule('./drum-sequencer-processor.js');
-      
-      // Load Greyhole processor
-      await this.audioContext.audioWorklet.addModule('./greyhole-processor.js');
-      
-      console.log('%c✓ All AudioWorklets loaded including effects', 'color: green; font-weight: bold');
-      
-      await new Promise(resolve => setTimeout(resolve, 200));
+  this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+  // Load AudioWorklet processors
+  await this.audioContext.audioWorklet.addModule('./just-friends-processor.js');
+  await this.audioContext.audioWorklet.addModule('./just-friends-osc-processor.js');
+  await this.audioContext.audioWorklet.addModule('./quantizer-processor.js');
+  await this.audioContext.audioWorklet.addModule('./transpose-sequencer-processor.js');
+  await this.audioContext.audioWorklet.addModule('./mangrove-processor.js');
+  await this.audioContext.audioWorklet.addModule('./three-sisters-processor.js');
+  await this.audioContext.audioWorklet.addModule('./modulation-matrix-processor.js');
+  await this.audioContext.audioWorklet.addModule('./envelope-processor.js');
+  await this.audioContext.audioWorklet.addModule('./lfo-processor.js');
+  
+  // Load drum machine worklets
+  await this.audioContext.audioWorklet.addModule('./drum-synth-processor.js');
+  await this.audioContext.audioWorklet.addModule('./drum-sequencer-processor.js');
+  
+  // Load Greyhole processor
+  await this.audioContext.audioWorklet.addModule('./greyhole-processor.js');
+  
+  console.log('%c✓ All AudioWorklets loaded including effects', 'color: green; font-weight: bold');
+  
+  await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Create module instances
-      this.jf1 = new JustFriendsNode(this.audioContext);
-      this.jfOsc = new JustFriendsOscNode(this.audioContext);
-      await new Promise(resolve => setTimeout(resolve, 10));
-      this.transposeSeq = new TransposeSequencerNode(this.audioContext);
-      this.quantizer = new QuantizerNode(this.audioContext);
-      this.envelopeVCA = new EnvelopeVCANode(this.audioContext);
-      
-      // Create 7 LFOs
-      for (let i = 0; i < 7; i++) {
-        this.lfos.push(new LFONode(this.audioContext, i));
-      }
-      console.log('✓ 7 LFOs created');
-      
-      this.jf1ToQuantGain = this.audioContext.createGain();
-      this.jf1ToQuantGain.gain.value = 1.0;
-      
-      this.mangroveA = new MangroveNode(this.audioContext);
-      this.mangroveB = new MangroveNode(this.audioContext);
-      this.mangroveC = new MangroveNode(this.audioContext);
-      this.threeSisters = new ThreeSistersNode(this.audioContext);
-      this.modMatrix = new ModulationMatrixNode(this.audioContext);
-      this.masterGain = this.audioContext.createGain();
-      this.masterGain.gain.value = 0.3;
+  // Create module instances
+  this.jf1 = new JustFriendsNode(this.audioContext);
+  this.jfOsc = new JustFriendsOscNode(this.audioContext);
+  await new Promise(resolve => setTimeout(resolve, 10));
+  this.transposeSeq = new TransposeSequencerNode(this.audioContext);
+  this.quantizer = new QuantizerNode(this.audioContext);
+  this.envelopeVCA = new EnvelopeVCANode(this.audioContext);
+  
+  // Create 7 LFOs
+  for (let i = 0; i < 7; i++) {
+    this.lfos.push(new LFONode(this.audioContext, i));
+  }
+  console.log('✓ 7 LFOs created');
+  
+  this.jf1ToQuantGain = this.audioContext.createGain();
+  this.jf1ToQuantGain.gain.value = 1.0;
+  
+  this.mangroveA = new MangroveNode(this.audioContext);
+  this.mangroveB = new MangroveNode(this.audioContext);
+  this.mangroveC = new MangroveNode(this.audioContext);
+  this.threeSisters = new ThreeSistersNode(this.audioContext);
+  this.modMatrix = new ModulationMatrixNode(this.audioContext);
+  this.masterGain = this.audioContext.createGain();
+  this.masterGain.gain.value = 0.3;
 
-      this.mangroveAGain = this.audioContext.createGain();
-      this.mangroveAGain.gain.value = 1.0;
-      this.jfOscGain = this.audioContext.createGain();
-      this.jfOscGain.gain.value = 0.0;
+  this.mangroveAGain = this.audioContext.createGain();
+  this.mangroveAGain.gain.value = 1.0;
+  this.jfOscGain = this.audioContext.createGain();
+  this.jfOscGain.gain.value = 0.0;
 
-      this.fmGainB = this.audioContext.createGain();
-      this.fmGainB.gain.value = 0.0;
-      this.fmExpGain = this.audioContext.createGain();
-      this.fmExpGain.gain.value = 0.3;
-      this.fmLinGain = this.audioContext.createGain();
-      this.fmLinGain.gain.value = 1.0;
+  this.fmGainB = this.audioContext.createGain();
+  this.fmGainB.gain.value = 0.0;
+  this.fmExpGain = this.audioContext.createGain();
+  this.fmExpGain.gain.value = 0.3;
+  this.fmLinGain = this.audioContext.createGain();
+  this.fmLinGain.gain.value = 1.0;
 
-      this.transposeGain = this.audioContext.createGain();
-      this.transposeGain.gain.value = 12.0;
+  this.transposeGain = this.audioContext.createGain();
+  this.transposeGain.gain.value = 12.0;
 
-      this.renePitchGain = this.audioContext.createGain();
-      this.renePitchGain.gain.value = 0;
-      
-      this.renePitchSource = this.audioContext.createConstantSource();
-      this.renePitchSource.offset.value = 0;
-      this.renePitchSource.start();
+  this.renePitchGain = this.audioContext.createGain();
+  this.renePitchGain.gain.value = 0;
+  
+  this.renePitchSource = this.audioContext.createConstantSource();
+  this.renePitchSource.offset.value = 0;
+  this.renePitchSource.start();
 
-      // CREATE DRUM MACHINE
-      this.drumSequencer = new DrumSequencerNode(this.audioContext);
-      this.drumSynth = new DrumSynthNode(this.audioContext);
-      this.drumMasterGain = this.audioContext.createGain();
-      this.drumMasterGain.gain.value = 0.7;
-      
-      // Create clock pulse generators
-      this.createDrumClockSources();
+  // CREATE DRUM MACHINE
+  this.drumSequencer = new DrumSequencerNode(this.audioContext);
+  this.drumSynth = new DrumSynthNode(this.audioContext);
+  this.drumMasterGain = this.audioContext.createGain();
+  this.drumMasterGain.gain.value = 0.7;
+  
+  // Create clock pulse generators
+  this.createDrumClockSources();
 
-      // CREATE EFFECTS CHAIN
-      this.effectsInput = this.audioContext.createGain();
-      this.effectsOutput = this.audioContext.createGain();
-      
-      // DJ Equalizer
-      this.djEQ = new DJEqualizerUI(this.audioContext);
-      
-      // Saturation
-      this.saturation = new SaturationEffectUI(this.audioContext);
-      
-      // Mimeophon
-      this.mimeophon = new StandaloneMimeophon(this.audioContext);
-      await this.mimeophon.init();
-      
-      // Greyhole
-      this.greyhole = new GreyholeNode(this.audioContext);
-      
-      // Zita Reverb
-      this.zitaReverb = new ZitaReverb(this.audioContext);
-      await this.zitaReverb.init('./zita-reverb-processor.js');
+  // CREATE EFFECTS CHAIN
+  this.effectsInput = this.audioContext.createGain();
+  this.effectsOutput = this.audioContext.createGain();
+  
+  // DJ Equalizer (3-band with kill switches)
+  this.djEQ = new DJEqualizer(this.audioContext, {
+    lowFreq: 100,
+    midFreq: 1000,
+    highFreq: 5000
+  });
+  
+  // Saturation (tape/tube/transformer distortion)
+  this.saturation = new SaturationEffect(this.audioContext, {
+    mode: 'tape',
+    drive: 0,
+    bias: 0,
+    mix: 1.0,
+    harmonics: 'even'
+  });
+  
+  // Mimeophon (color delay)
+  this.mimeophon = new StandaloneMimeophon(this.audioContext);
+  await this.mimeophon.init();
+  
+  // Greyhole (diffusion reverb)
+  this.greyhole = new GreyholeNode(this.audioContext);
+  
+  // Zita Reverb (high-quality FDN reverb)
+  this.zitaReverb = new ZitaReverb(this.audioContext);
+  await this.zitaReverb.init('./zita-reverb-processor.js');
+  
+  console.log('✓ Effects chain created (EQ → Saturation → Mimeophon → Greyhole → Zita)');
 
-      this.initEffectsUI();
-      
-      console.log('✓ Effects chain created');
+  this.setupScope1();
+  this.setupScope2();
 
-      this.setupScope1();
-      this.setupScope2();
+// ========== SIGNAL ROUTING ==========
 
-      // ========== SIGNAL ROUTING ==========
-      
-      // Existing routing (unchanged)
-      this.jf1.getIdentityOutput().connect(this.transposeSeq.getClockInput());
-      this.jf1.getIdentityOutput().connect(this.scope1Analyser);
-      this.scope1Analyser.connect(this.jf1ToQuantGain);
-      this.jf1ToQuantGain.connect(this.quantizer.getInput());
+// Existing routing (unchanged)
+this.jf1.getIdentityOutput().connect(this.transposeSeq.getClockInput());
+this.jf1.getIdentityOutput().connect(this.scope1Analyser);
+this.scope1Analyser.connect(this.jf1ToQuantGain);
+this.jf1ToQuantGain.connect(this.quantizer.getInput());
 
-      this.transposeSeq.getTransposeOutput().connect(this.transposeGain);
-      this.transposeGain.connect(this.quantizer.params.transpose);
+this.transposeSeq.getTransposeOutput().connect(this.transposeGain);
+this.transposeGain.connect(this.quantizer.params.transpose);
 
-      this.renePitchSource.connect(this.renePitchGain);
-      this.renePitchGain.connect(this.quantizer.getInput());
+this.renePitchSource.connect(this.renePitchGain);
+this.renePitchGain.connect(this.quantizer.getInput());
 
-      this.quantizer.getOutput().connect(this.mangroveA.getPitchCVInput());
-      this.quantizer.getOutput().connect(this.jfOsc.getTimeCVInput());
+this.quantizer.getOutput().connect(this.mangroveA.getPitchCVInput());
+this.quantizer.getOutput().connect(this.jfOsc.getTimeCVInput());
 
-      this.mangroveB.getFormantOutput().connect(this.fmGainB);
-      this.fmGainB.connect(this.fmExpGain);
-      this.fmExpGain.connect(this.mangroveA.getPitchCVInput());
-      this.fmExpGain.connect(this.jfOsc.getTimeCVInput());
-      this.fmGainB.connect(this.fmLinGain);
-      this.fmLinGain.connect(this.mangroveA.getFMInput());
-      this.fmLinGain.connect(this.jfOsc.getFMInput());
+this.mangroveB.getFormantOutput().connect(this.fmGainB);
+this.fmGainB.connect(this.fmExpGain);
+this.fmExpGain.connect(this.mangroveA.getPitchCVInput());
+this.fmExpGain.connect(this.jfOsc.getTimeCVInput());
+this.fmGainB.connect(this.fmLinGain);
+this.fmLinGain.connect(this.mangroveA.getFMInput());
+this.fmLinGain.connect(this.jfOsc.getFMInput());
 
-      this.mangroveA.getFormantOutput().connect(this.mangroveAGain);
-      this.jfOsc.getMixOutput().connect(this.jfOscGain);
-      this.mangroveAGain.connect(this.threeSisters.getAudioInput());
-      this.jfOscGain.connect(this.threeSisters.getAudioInput());
+this.mangroveA.getFormantOutput().connect(this.mangroveAGain);
+this.jfOsc.getMixOutput().connect(this.jfOscGain);
+this.mangroveAGain.connect(this.threeSisters.getAudioInput());
+this.jfOscGain.connect(this.threeSisters.getAudioInput());
 
-      this.mangroveC.getFormantOutput().connect(this.threeSisters.getFMInput());
+this.mangroveC.getFormantOutput().connect(this.threeSisters.getFMInput());
 
-      this.threeSisters.getAllOutput().connect(this.scope2Analyser);
-      this.scope2Analyser.connect(this.masterGain);
-      
-      // Route synth audio through effects chain
-      this.masterGain.connect(this.effectsInput);
-      
-      // Effects chain: EQ → Saturation → Mimeophon → Greyhole → Zita → Destination
-      this.effectsInput.connect(this.djEQ.input);
-      this.djEQ.output.connect(this.saturation.input);
-      this.saturation.output.connect(this.mimeophon.inputGain);
-      this.mimeophon.outputGain.connect(this.greyhole.input);
-      this.greyhole.connect(this.zitaReverb.node);
-      this.zitaReverb.node.connect(this.effectsOutput);
-      this.effectsOutput.connect(this.audioContext.destination);
-      
-      console.log('✓ Effects chain routed (synth only, drums bypass)');
-      
-      this.jfMerger = this.audioContext.createChannelMerger(5);
-      this.jf1.get2NOutput().connect(this.jfMerger, 0, 0);
-      this.jf1.get3NOutput().connect(this.jfMerger, 0, 1);
-      this.jf1.get4NOutput().connect(this.jfMerger, 0, 2);
-      this.jf1.get5NOutput().connect(this.jfMerger, 0, 3);
-      this.jf1.get6NOutput().connect(this.jfMerger, 0, 4);
-      this.jfMerger.connect(this.modMatrix.getInput());
-      
-      // Setup drum routing
-      this.setupDrumRouting();
-      
-      console.log('=== Phase 5 + LFOs + Drums + Effects ===');
-      console.log('Signal routing complete');
+// Three Sisters → Scope2 (to visualize pre-effects)
+this.threeSisters.getAllOutput().connect(this.scope2Analyser);
+
+// Scope2 → Effects Chain → Master → Destination
+this.scope2Analyser.connect(this.effectsInput);
+
+// Effects chain: EQ → Saturation → Mimeophon → Greyhole → Zita
+this.effectsInput.connect(this.djEQ.input);
+this.djEQ.output.connect(this.saturation.input);
+this.saturation.output.connect(this.mimeophon.inputGain);
+this.mimeophon.outputGain.connect(this.greyhole.input);
+this.greyhole.connect(this.zitaReverb.node);
+this.zitaReverb.node.connect(this.effectsOutput);
+
+// Effects output → Master gain → Destination
+this.effectsOutput.connect(this.masterGain);
+this.masterGain.connect(this.audioContext.destination);
+
+console.log('✓ Effects chain routed (synth through effects)');
+
+// Modulation matrix
+this.jfMerger = this.audioContext.createChannelMerger(5);
+this.jf1.get2NOutput().connect(this.jfMerger, 0, 0);
+this.jf1.get3NOutput().connect(this.jfMerger, 0, 1);
+this.jf1.get4NOutput().connect(this.jfMerger, 0, 2);
+this.jf1.get5NOutput().connect(this.jfMerger, 0, 3);
+this.jf1.get6NOutput().connect(this.jfMerger, 0, 4);
+this.jfMerger.connect(this.modMatrix.getInput());
+
+// Setup drum routing (drums bypass effects, go direct to master)
+this.setupDrumRouting();
+
+console.log('=== Phase 5 + LFOs + Drums + Effects ===');
+console.log('Signal routing complete');
       
       // Build comprehensive destination map
       this.buildDestinationMap();
