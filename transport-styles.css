@@ -1,4 +1,4 @@
-/* transport-styles.css - Floating transport control sidebar */
+/* transport-styles.css - Floating transport control sidebar with patch save/load */
 
 /* Transport Sidebar Container - mirrors recorder on the left */
 .transport-sidebar {
@@ -240,6 +240,54 @@
   cursor: pointer;
 }
 
+/* ========== PATCH SAVE/LOAD SECTION ========== */
+
+.transport-patch-controls {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-light);
+}
+
+.transport-patch-label {
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* Patch Save Button */
+.transport-btn.patch-save {
+  background: linear-gradient(135deg, #7eb5d6, #5a9fc4);
+  color: white;
+  box-shadow: 0 4px 12px rgba(126, 181, 214, 0.4);
+  height: 40px;
+  font-size: 1rem;
+}
+
+.transport-btn.patch-save:hover {
+  background: linear-gradient(135deg, #5a9fc4, #4a8fb4);
+  box-shadow: 0 6px 16px rgba(126, 181, 214, 0.5);
+}
+
+/* Patch Load Button */
+.transport-btn.patch-load {
+  background: linear-gradient(135deg, #c49ac4, #a47ea4);
+  color: white;
+  box-shadow: 0 4px 12px rgba(196, 154, 196, 0.4);
+  height: 40px;
+  font-size: 1rem;
+}
+
+.transport-btn.patch-load:hover {
+  background: linear-gradient(135deg, #a47ea4, #946e94);
+  box-shadow: 0 6px 16px rgba(196, 154, 196, 0.5);
+}
+
 /* Tooltip */
 .transport-tooltip {
   position: absolute;
@@ -284,6 +332,12 @@
     font-size: 1rem;
   }
   
+  .transport-btn.patch-save,
+  .transport-btn.patch-load {
+    height: 36px;
+    font-size: 0.9rem;
+  }
+  
   .transport-volume-slider-container {
     height: 50px;
   }
@@ -317,6 +371,12 @@
     height: 44px;
   }
   
+  .transport-btn.patch-save,
+  .transport-btn.patch-load {
+    width: 40px;
+    height: 40px;
+  }
+  
   .transport-title {
     display: none;
   }
@@ -337,6 +397,18 @@
   .transport-volume-slider-horizontal {
     transform: none;
     width: 50px;
+  }
+  
+  .transport-patch-controls {
+    flex-direction: row;
+    padding-top: 0;
+    padding-left: var(--space-sm);
+    border-top: none;
+    border-left: 1px solid var(--border-light);
+  }
+  
+  .transport-patch-label {
+    display: none;
   }
 }
 
