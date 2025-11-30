@@ -1,6 +1,7 @@
 // rene-integration-redesigned.js
 // UPGRADED Integration for René with 4 mod lanes, pattern system, Pattern/Edit modes, and drum machine clock
 // FIXED: Note range now ±2 octaves centered at 12 o'clock
+// UPGRADED: Mod lanes now have access to ALL destinations (same as LFOs)
 
 import { ReneSequencer } from './ReneSequencer.js';
 import { RenePatternSystem } from './RenePatternSystem.js';
@@ -18,6 +19,9 @@ let reneSequencer = null;
 let renePatternSystem = null;
 let envelopeVCA = null;
 
+// Store app reference for accessing destinationMap
+let appReference = null;
+
 // UPGRADED: 4 mod destinations
 let modDestinations = [null, null, null, null];
 let modDepths = [0.5, 0.5, 0.5, 0.5];
@@ -30,6 +34,9 @@ let patternMode = false; // false = Edit Mode, true = Pattern Mode
  */
 export async function initReneMode(app) {
   console.log('Initializing UPGRADED René mode (4 mod lanes + patterns + drum clock)...');
+  
+  // Store app reference for destinationMap access
+  appReference = app;
   
   // Create envelope/VCA
   envelopeVCA = new EnvelopeVCANode(app.audioContext);
@@ -127,6 +134,7 @@ export async function initReneMode(app) {
   
   console.log('✓ UPGRADED René mode initialized with drum machine clock');
   console.log('✓ Note range: ±2 octaves (knob center = no transpose)');
+  console.log('✓ Mod lanes now have full destination access (same as LFOs)');
 }
 
 /**
@@ -669,53 +677,160 @@ function disableReneRouting(app) {
 
 /**
  * UPGRADED: Set modulation target for specific lane
+ * Now uses the full destinationMap from the app for comprehensive modulation routing
  */
 function setModTarget(app, laneIndex, target) {
   modDestinations[laneIndex] = null;
   
   if (!target) return;
   
-  const targetMap = {
-    'ma.air': app.mangroveA?.params?.airKnob,
-    'ma.formant': app.mangroveA?.params?.formantKnob,
-    'ma.barrel': app.mangroveA?.params?.barrelKnob,
-    'ts.freq': app.threeSisters?.params?.freq,
-    'ts.span': app.threeSisters?.params?.span,
-    'ts.quality': app.threeSisters?.params?.quality,
-    // Add more destinations as needed
-  };
-  
-  modDestinations[laneIndex] = targetMap[target];
-  
-  if (modDestinations[laneIndex]) {
+  // Use the app's comprehensive destinationMap
+  if (app.destinationMap && app.destinationMap[target]) {
+    modDestinations[laneIndex] = app.destinationMap[target];
     console.log(`Mod ${laneIndex + 1} target: ${target}`);
+  } else {
+    console.warn(`Unknown mod target: ${target}`);
   }
 }
 
 /**
+ * UPGRADED: Generate destination options HTML
+ * Matches the comprehensive list available in the LFO system
+ */
+function generateModDestinationOptions() {
+  const groups = [
+    {
+      label: 'Just Friends #1',
+      options: [
+        { value: 'jf1.time', label: 'Time' },
+        { value: 'jf1.intone', label: 'Intone' },
+        { value: 'jf1.ramp', label: 'Ramp' },
+        { value: 'jf1.curve', label: 'Curve' },
+        { value: 'jf1.fmDepth', label: 'FM Depth' }
+      ]
+    },
+    {
+      label: 'Envelope/VCA',
+      options: [
+        { value: 'env.attack', label: 'Attack' },
+        { value: 'env.decay', label: 'Decay/Release' },
+        { value: 'env.sustain', label: 'Sustain' }
+      ]
+    },
+    {
+      label: 'Quantizer',
+      options: [
+        { value: 'quant.depth', label: 'Depth' },
+        { value: 'quant.offset', label: 'Offset' },
+        { value: 'quant.transpose', label: 'Transpose' }
+      ]
+    },
+    {
+      label: 'Mangrove A',
+      options: [
+        { value: 'ma.pitch', label: 'Pitch' },
+        { value: 'ma.barrel', label: 'Barrel' },
+        { value: 'ma.formant', label: 'Formant' },
+        { value: 'ma.air', label: 'Air' },
+        { value: 'ma.fmIndex', label: 'FM Depth' }
+      ]
+    },
+    {
+      label: 'Mangrove B',
+      options: [
+        { value: 'mb.pitch', label: 'Pitch' },
+        { value: 'mb.barrel', label: 'Barrel' },
+        { value: 'mb.formant', label: 'Formant' },
+        { value: 'mb.air', label: 'Air' },
+        { value: 'mb.fmIndex', label: 'FM Depth' }
+      ]
+    },
+    {
+      label: 'Mangrove C',
+      options: [
+        { value: 'mc.pitch', label: 'Pitch' },
+        { value: 'mc.barrel', label: 'Barrel' },
+        { value: 'mc.formant', label: 'Formant' },
+        { value: 'mc.air', label: 'Air' },
+        { value: 'mc.fmIndex', label: 'FM Depth' }
+      ]
+    },
+    {
+      label: 'Just Friends Osc',
+      options: [
+        { value: 'jfosc.time', label: 'Time' },
+        { value: 'jfosc.intone', label: 'Intone' },
+        { value: 'jfosc.ramp', label: 'Ramp' },
+        { value: 'jfosc.curve', label: 'Curve' },
+        { value: 'jfosc.fmIndex', label: 'FM Index' },
+        { value: 'jfosc.run', label: 'RUN' }
+      ]
+    },
+    {
+      label: 'Three Sisters',
+      options: [
+        { value: 'ts.freq', label: 'Frequency' },
+        { value: 'ts.span', label: 'Span' },
+        { value: 'ts.quality', label: 'Quality' },
+        { value: 'ts.fmAtten', label: 'FM Atten' }
+      ]
+    },
+    {
+      label: 'LFOs',
+      options: [
+        { value: 'lfo1.rate', label: 'LFO 1: Rate' },
+        { value: 'lfo1.phase', label: 'LFO 1: Phase' },
+        { value: 'lfo2.rate', label: 'LFO 2: Rate' },
+        { value: 'lfo2.phase', label: 'LFO 2: Phase' },
+        { value: 'lfo3.rate', label: 'LFO 3: Rate' },
+        { value: 'lfo3.phase', label: 'LFO 3: Phase' },
+        { value: 'lfo4.rate', label: 'LFO 4: Rate' },
+        { value: 'lfo4.phase', label: 'LFO 4: Phase' },
+        { value: 'lfo5.rate', label: 'LFO 5: Rate' },
+        { value: 'lfo5.phase', label: 'LFO 5: Phase' },
+        { value: 'lfo6.rate', label: 'LFO 6: Rate' },
+        { value: 'lfo6.phase', label: 'LFO 6: Phase' },
+        { value: 'lfo7.rate', label: 'LFO 7: Rate' },
+        { value: 'lfo7.phase', label: 'LFO 7: Phase' }
+      ]
+    },
+    {
+      label: 'Master',
+      options: [
+        { value: 'master.volume', label: 'Volume' }
+      ]
+    }
+  ];
+  
+  // Generate HTML
+  let html = '<option value="">-- none --</option>';
+  groups.forEach(group => {
+    if (group.options.length === 0) return;
+    html += `<optgroup label="${group.label}">`;
+    group.options.forEach(opt => {
+      html += `<option value="${opt.value}">${opt.label}</option>`;
+    });
+    html += '</optgroup>';
+  });
+  
+  return html;
+}
+
+/**
  * UPGRADED: Populate mod target dropdowns for all 4 lanes
+ * Now uses the comprehensive destination list matching the LFO system
  */
 function populateModTargetOptions() {
-  const options = `
-    <option value="">-- none --</option>
-    <optgroup label="Mangrove A">
-      <option value="ma.air">Air</option>
-      <option value="ma.formant">Formant</option>
-      <option value="ma.barrel">Barrel</option>
-    </optgroup>
-    <optgroup label="Three Sisters">
-      <option value="ts.freq">Freq</option>
-      <option value="ts.span">Span</option>
-      <option value="ts.quality">Quality</option>
-    </optgroup>
-  `;
+  const optionsHTML = generateModDestinationOptions();
   
   for (let i = 0; i < 4; i++) {
     const select = document.getElementById(`modTarget${i}`);
     if (select) {
-      select.innerHTML = options;
+      select.innerHTML = optionsHTML;
     }
   }
+  
+  console.log('✓ Mod target dropdowns populated with full destination list');
 }
 
 /**
