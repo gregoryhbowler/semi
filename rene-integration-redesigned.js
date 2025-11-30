@@ -1,5 +1,6 @@
 // rene-integration-redesigned.js
 // UPGRADED Integration for René with 4 mod lanes, pattern system, Pattern/Edit modes, and drum machine clock
+// FIXED: Note range now ±2 octaves centered at 12 o'clock
 
 import { ReneSequencer } from './ReneSequencer.js';
 import { RenePatternSystem } from './RenePatternSystem.js';
@@ -44,10 +45,13 @@ export async function initReneMode(app) {
   reneSequencer = new ReneSequencer({
     audioContext: app.audioContext,
     
+    // FIXED: Note values now bipolar with ±2 octave range
     onNote: ({ value, time, step }) => {
-      // Convert 0-1 value to pitch CV
-      const voltage = value * 4.0; // 0-4V range
-      const normalized = voltage / 5.0; // Normalize for Web Audio
+      // Convert 0-1 value to BIPOLAR pitch CV (centered at 0.5)
+      // 0 = -2 octaves, 0.5 = center (no transpose), 1 = +2 octaves
+      const bipolarValue = (value - 0.5) * 2; // -1 to +1
+      const voltage = bipolarValue * 2.0; // -2V to +2V (±2 octaves in 1V/oct)
+      const normalized = voltage / 5.0; // Normalize for Web Audio (-0.4 to +0.4)
       
       if (app.renePitchSource) {
         app.renePitchSource.offset.setValueAtTime(normalized, time);
@@ -121,6 +125,7 @@ export async function initReneMode(app) {
   bindReneControls(app);
   
   console.log('✓ UPGRADED René mode initialized with drum machine clock');
+  console.log('✓ Note range: ±2 octaves (knob center = no transpose)');
 }
 
 /**
@@ -195,7 +200,7 @@ function resetToBlankMode() {
   // Load default blank state into René
   if (reneSequencer) {
     const blankState = {
-      noteValues: new Array(16).fill(0.5),
+      noteValues: new Array(16).fill(0.5), // Center = no transpose
       gateEnabled: new Array(16).fill(true),
       modValues: [
         new Array(16).fill(0),
