@@ -1,47 +1,47 @@
-/* Modulation Matrix Styles */
+/* mod-matrix-styles.css - Dream Aesthetic */
 
 .mod-matrix-panel {
   grid-column: 1 / -1;
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.6) 0%, 
-    rgba(240, 240, 255, 0.6) 100%);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
 }
 
 .mod-slots-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--space-md);
-  margin-bottom: var(--space-md);
+  gap: 12px;
+  padding: 16px;
 }
 
 .mod-slot {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid var(--border-medium);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: var(--space-md);
-  transition: all 0.3s ease;
+  padding: 14px;
+  transition: all 0.15s ease;
 }
 
 .mod-slot.active {
-  border-color: #6b5b95;
-  box-shadow: 0 0 0 2px rgba(107, 91, 149, 0.2);
-  background: rgba(220, 220, 255, 0.5);
+  border-color: var(--accent-blue);
+  background: rgba(122, 155, 184, 0.03);
 }
 
 .mod-slot-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-md);
-  padding-bottom: var(--space-sm);
+  margin-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border-light);
 }
 
 .mod-slot-label {
-  font-size: 0.75rem;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .mod-toggle {
@@ -49,42 +49,37 @@
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  user-select: none;
 }
 
 .mod-toggle input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
-  accent-color: #6b5b95;
+  accent-color: var(--accent-blue);
 }
 
 .mod-toggle-text {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
+  font-size: 10px;
+  color: var(--text-muted);
   font-weight: 500;
-}
-
-.mod-toggle:hover .mod-toggle-text {
-  color: var(--text-primary);
 }
 
 .mod-slot-controls {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: 10px;
 }
 
 .mod-control-row {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 10px;
 }
 
 .mod-control-row label {
-  flex: 0 0 70px;
-  font-size: 0.65rem;
-  color: var(--text-secondary);
+  flex: 0 0 60px;
+  font-size: 10px;
+  color: var(--text-muted);
   text-transform: lowercase;
   font-weight: 500;
 }
@@ -92,13 +87,13 @@
 .mod-control-row select {
   flex: 1;
   padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-light);
-  border-radius: 6px;
-  font-size: 0.7rem;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
   color: var(--text-primary);
   cursor: pointer;
-  font-family: inherit;
+  font-family: var(--font-sans);
 }
 
 .mod-control-row select:hover {
@@ -107,56 +102,49 @@
 
 .mod-control-row select:focus {
   outline: none;
-  border-color: #6b5b95;
-  box-shadow: 0 0 0 2px rgba(107, 91, 149, 0.1);
+  border-color: var(--accent-blue);
 }
 
 .mod-control-row input[type="range"] {
   flex: 1;
-  height: 3px;
+  height: 4px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--border-light);
   border-radius: 2px;
   cursor: pointer;
 }
 
 .mod-control-row input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  background: #6b5b95;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-blue);
   border-radius: 50%;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.mod-control-row input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-  box-shadow: 0 2px 8px rgba(107, 91, 149, 0.3);
 }
 
 .mod-value {
-  flex: 0 0 45px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: var(--text-primary);
+  flex: 0 0 40px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-blue-dark);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
 
 .mod-matrix-hint {
-  font-size: 0.7rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  padding: var(--space-md);
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: var(--radius-sm);
-  border-left: 3px solid #6b5b95;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .mod-matrix-hint p {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .mod-matrix-hint p:last-child {
@@ -164,12 +152,18 @@
 }
 
 .mod-matrix-hint strong {
-  color: var(--text-primary);
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
 /* Disabled state */
 .mod-slot:not(.active) .mod-slot-controls {
-  opacity: 0.5;
+  opacity: 0.4;
   pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .mod-slots-container {
+    grid-template-columns: 1fr;
+  }
 }
