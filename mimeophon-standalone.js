@@ -2,14 +2,7 @@
  * MIMEOPHON - Standalone Stereo Delay Effect
  * 
  * A complete Mimeophon-inspired delay effect with UI
- * Drop this file into any project and create instances as needed
- * 
- * Usage:
- *   const mimeophon = new StandaloneMimeophon(audioContext);
- *   await mimeophon.init();
- *   mimeophon.connectInput(sourceNode);
- *   mimeophon.connectOutput(destination);
- *   document.body.appendChild(mimeophon.createUI());
+ * Updated to match Phase 5 pastel aesthetic
  */
 
 export class StandaloneMimeophon {
@@ -683,7 +676,7 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
     }
     
     /**
-     * Create UI for the Mimeophon
+     * Create UI for the Mimeophon - matches Phase 5 aesthetic
      */
     createUI() {
         if (this.uiContainer) {
@@ -691,305 +684,137 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         }
         
         const container = document.createElement('div');
-        container.className = 'mimeophon-container';
-        container.style.cssText = `
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #2d3436 0%, #1e272e 100%);
-            border-radius: 12px;
-            padding: 20px;
-            color: #dfe6e9;
-            max-width: 900px;
-            margin: 20px auto;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        `;
+        container.className = 'mimeophon-module';
         
         container.innerHTML = `
-            <style>
-                .mimeophon-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 20px;
-                    padding-bottom: 15px;
-                    border-bottom: 2px solid rgba(255,255,255,0.1);
-                }
-                .mimeophon-title {
-                    font-size: 1.5em;
-                    font-weight: 600;
-                    color: #74b9ff;
-                    text-transform: uppercase;
-                    letter-spacing: 2px;
-                }
-                .mimeophon-preset-selector {
-                    display: flex;
-                    gap: 10px;
-                    align-items: center;
-                }
-                .mimeophon-preset-selector label {
-                    font-size: 0.9em;
-                    color: #b2bec3;
-                    text-transform: uppercase;
-                    font-weight: 500;
-                }
-                .mimeophon-preset-selector select {
-                    padding: 8px 12px;
-                    border-radius: 6px;
-                    background: rgba(0,0,0,0.3);
-                    color: #dfe6e9;
-                    border: 1px solid rgba(255,255,255,0.1);
-                    font-size: 0.9em;
-                    cursor: pointer;
-                }
-                .mimeophon-grid {
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 20px;
-                    margin-bottom: 20px;
-                }
-                .mimeophon-section {
-                    background: rgba(0,0,0,0.2);
-                    border-radius: 10px;
-                    padding: 15px;
-                }
-                .mimeophon-section-title {
-                    font-size: 0.85em;
-                    text-transform: uppercase;
-                    letter-spacing: 1.5px;
-                    color: #74b9ff;
-                    margin-bottom: 15px;
-                    font-weight: 600;
-                }
-                .mimeophon-zone-selector {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 5px;
-                    margin-bottom: 15px;
-                }
-                .mimeophon-zone-btn {
-                    padding: 10px 5px;
-                    background: rgba(255,255,255,0.05);
-                    border: 2px solid rgba(255,255,255,0.1);
-                    border-radius: 6px;
-                    color: #b2bec3;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    font-size: 0.85em;
-                    text-align: center;
-                }
-                .mimeophon-zone-btn:hover {
-                    background: rgba(255,255,255,0.1);
-                    border-color: rgba(116,185,255,0.5);
-                }
-                .mimeophon-zone-btn.active {
-                    background: #74b9ff;
-                    border-color: #74b9ff;
-                    color: #2d3436;
-                }
-                .mimeophon-param {
-                    margin-bottom: 12px;
-                }
-                .mimeophon-param-header {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 6px;
-                }
-                .mimeophon-param-label {
-                    font-size: 0.75em;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                    color: #b2bec3;
-                    font-weight: 500;
-                }
-                .mimeophon-param-value {
-                    font-size: 0.75em;
-                    color: #74b9ff;
-                    font-weight: 600;
-                }
-                input[type="range"] {
-                    width: 100%;
-                    height: 4px;
-                    border-radius: 2px;
-                    background: rgba(255,255,255,0.1);
-                    outline: none;
-                    -webkit-appearance: none;
-                }
-                input[type="range"]::-webkit-slider-thumb {
-                    -webkit-appearance: none;
-                    appearance: none;
-                    width: 14px;
-                    height: 14px;
-                    border-radius: 50%;
-                    background: #74b9ff;
-                    cursor: pointer;
-                    box-shadow: 0 2px 8px rgba(116,185,255,0.5);
-                }
-                input[type="range"]::-moz-range-thumb {
-                    width: 14px;
-                    height: 14px;
-                    border-radius: 50%;
-                    background: #74b9ff;
-                    cursor: pointer;
-                    border: none;
-                    box-shadow: 0 2px 8px rgba(116,185,255,0.5);
-                }
-                .mimeophon-toggles {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 8px;
-                    margin-top: 12px;
-                }
-                .mimeophon-toggle-btn {
-                    padding: 10px;
-                    background: rgba(255,255,255,0.05);
-                    border: 2px solid rgba(255,255,255,0.1);
-                    border-radius: 6px;
-                    color: #b2bec3;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    font-size: 0.8em;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                }
-                .mimeophon-toggle-btn:hover {
-                    background: rgba(255,255,255,0.1);
-                }
-                .mimeophon-toggle-btn.active {
-                    background: #00b894;
-                    border-color: #00b894;
-                    color: white;
-                }
-                .mimeophon-io-controls {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 15px;
-                    background: rgba(0,0,0,0.2);
-                    border-radius: 10px;
-                    padding: 15px;
-                }
-                .mimeophon-io-param {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                }
-                .mimeophon-io-param label {
-                    font-size: 0.75em;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                    color: #b2bec3;
-                    font-weight: 500;
-                }
-                .mimeophon-io-value {
-                    font-size: 0.85em;
-                    color: #74b9ff;
-                    font-weight: 600;
-                    text-align: center;
-                    margin-top: 4px;
-                }
-            </style>
-            
+            <!-- Header -->
             <div class="mimeophon-header">
-                <div class="mimeophon-title">Mimeophon</div>
-                <div class="mimeophon-preset-selector">
-                    <label>preset:</label>
-                    <select id="mimeophon-preset">
-                        <option value="">-- select --</option>
-                        <option value="karplus">Karplus String</option>
-                        <option value="flange">Flange</option>
-                        <option value="chorus">Chorus</option>
-                        <option value="slapback">Slapback</option>
-                        <option value="dubEcho">Dub Echo</option>
-                        <option value="tapeDelay">Tape Delay</option>
-                        <option value="ambient">Ambient</option>
-                        <option value="shimmer">Shimmer</option>
-                    </select>
-                </div>
+                <h3 class="mimeophon-title">Mimeophon</h3>
+                <select class="mimeophon-preset-select" id="mimeophon-preset">
+                    <option value="">-- select --</option>
+                    <option value="karplus">Karplus String</option>
+                    <option value="flange">Flange</option>
+                    <option value="chorus">Chorus</option>
+                    <option value="slapback">Slapback</option>
+                    <option value="dubEcho">Dub Echo</option>
+                    <option value="tapeDelay">Tape Delay</option>
+                    <option value="ambient">Ambient</option>
+                    <option value="shimmer">Shimmer</option>
+                </select>
             </div>
             
+            <!-- Main Grid -->
             <div class="mimeophon-grid">
+                
+                <!-- Zone & Delay Section -->
                 <div class="mimeophon-section">
                     <div class="mimeophon-section-title">Zone & Delay</div>
-                    <div class="mimeophon-zone-selector">
-                        <button class="mimeophon-zone-btn" data-zone="0">A<br><span style="font-size:0.7em;">5-50ms</span></button>
-                        <button class="mimeophon-zone-btn active" data-zone="1">B<br><span style="font-size:0.7em;">50-400ms</span></button>
-                        <button class="mimeophon-zone-btn" data-zone="2">C<br><span style="font-size:0.7em;">0.4-2s</span></button>
-                        <button class="mimeophon-zone-btn" data-zone="3">D<br><span style="font-size:0.7em;">2-10s</span></button>
+                    
+                    <div class="mimeophon-zone-grid">
+                        <button class="mimeophon-zone-btn" data-zone="0">
+                            <span class="zone-letter">A</span>
+                            <span class="zone-range">5-50ms</span>
+                        </button>
+                        <button class="mimeophon-zone-btn active" data-zone="1">
+                            <span class="zone-letter">B</span>
+                            <span class="zone-range">50-400ms</span>
+                        </button>
+                        <button class="mimeophon-zone-btn" data-zone="2">
+                            <span class="zone-letter">C</span>
+                            <span class="zone-range">0.4-2s</span>
+                        </button>
+                        <button class="mimeophon-zone-btn" data-zone="3">
+                            <span class="zone-letter">D</span>
+                            <span class="zone-range">2-10s</span>
+                        </button>
                     </div>
+                    
                     <div class="mimeophon-param">
                         <div class="mimeophon-param-header">
                             <span class="mimeophon-param-label">rate</span>
-                            <span class="mimeophon-param-value" id="mimeophon-rate">50%</span>
+                            <span class="mimeophon-param-value" id="mimeophon-rate-val">50%</span>
                         </div>
-                        <input type="range" id="mimeophon-rate-slider" min="0" max="1" step="0.01" value="0.5">
+                        <input type="range" class="mimeophon-slider" id="mimeophon-rate" min="0" max="1" step="0.01" value="0.5">
                     </div>
+                    
                     <div class="mimeophon-param">
                         <div class="mimeophon-param-header">
-                            <span class="mimeophon-param-label">μRate amount</span>
-                            <span class="mimeophon-param-value" id="mimeophon-microrate">0%</span>
+                            <span class="mimeophon-param-label">mrate amount</span>
+                            <span class="mimeophon-param-value" id="mimeophon-microrate-val">0%</span>
                         </div>
-                        <input type="range" id="mimeophon-microrate-slider" min="0" max="1" step="0.01" value="0">
+                        <input type="range" class="mimeophon-slider" id="mimeophon-microrate" min="0" max="1" step="0.01" value="0">
                     </div>
+                    
                     <div class="mimeophon-param">
                         <div class="mimeophon-param-header">
-                            <span class="mimeophon-param-label">μRate freq</span>
-                            <span class="mimeophon-param-value" id="mimeophon-microrate-freq">2.0 Hz</span>
+                            <span class="mimeophon-param-label">mrate freq</span>
+                            <span class="mimeophon-param-value" id="mimeophon-microrate-freq-val">2.0 Hz</span>
                         </div>
-                        <input type="range" id="mimeophon-microrate-freq-slider" min="0.1" max="8" step="0.1" value="2">
+                        <input type="range" class="mimeophon-slider" id="mimeophon-microrate-freq" min="0.1" max="8" step="0.1" value="2">
                     </div>
+                    
                     <div class="mimeophon-param">
                         <div class="mimeophon-param-header">
                             <span class="mimeophon-param-label">skew</span>
-                            <span class="mimeophon-param-value" id="mimeophon-skew">0</span>
+                            <span class="mimeophon-param-value" id="mimeophon-skew-val">0</span>
                         </div>
-                        <input type="range" id="mimeophon-skew-slider" min="-1" max="1" step="0.01" value="0">
+                        <input type="range" class="mimeophon-slider" id="mimeophon-skew" min="-1" max="1" step="0.01" value="0">
                     </div>
                 </div>
                 
+                <!-- Feedback Section -->
                 <div class="mimeophon-section">
                     <div class="mimeophon-section-title">Feedback</div>
+                    
                     <div class="mimeophon-param">
                         <div class="mimeophon-param-header">
                             <span class="mimeophon-param-label">repeats</span>
-                            <span class="mimeophon-param-value" id="mimeophon-repeats">30%</span>
+                            <span class="mimeophon-param-value" id="mimeophon-repeats-val">30%</span>
                         </div>
-                        <input type="range" id="mimeophon-repeats-slider" min="0" max="1.2" step="0.01" value="0.3">
+                        <input type="range" class="mimeophon-slider" id="mimeophon-repeats" min="0" max="1.2" step="0.01" value="0.3">
                     </div>
+                    
                     <div class="mimeophon-param">
                         <div class="mimeophon-param-header">
                             <span class="mimeophon-param-label">color</span>
-                            <span class="mimeophon-param-value" id="mimeophon-color">tape</span>
+                            <span class="mimeophon-param-value" id="mimeophon-color-val">tape</span>
                         </div>
-                        <input type="range" id="mimeophon-color-slider" min="0" max="1" step="0.01" value="0.5">
+                        <input type="range" class="mimeophon-slider" id="mimeophon-color" min="0" max="1" step="0.01" value="0.5">
                     </div>
+                    
                     <div class="mimeophon-param">
                         <div class="mimeophon-param-header">
                             <span class="mimeophon-param-label">halo</span>
-                            <span class="mimeophon-param-value" id="mimeophon-halo">0%</span>
+                            <span class="mimeophon-param-value" id="mimeophon-halo-val">0%</span>
                         </div>
-                        <input type="range" id="mimeophon-halo-slider" min="0" max="1" step="0.01" value="0">
+                        <input type="range" class="mimeophon-slider" id="mimeophon-halo" min="0" max="1" step="0.01" value="0">
                     </div>
+                    
                     <div class="mimeophon-param">
                         <div class="mimeophon-param-header">
                             <span class="mimeophon-param-label">mix</span>
-                            <span class="mimeophon-param-value" id="mimeophon-mix">50%</span>
+                            <span class="mimeophon-param-value" id="mimeophon-mix-val">22%</span>
                         </div>
-                        <input type="range" id="mimeophon-mix-slider" min="0" max="1" step="0.01" value="0.0">
+                        <input type="range" class="mimeophon-slider" id="mimeophon-mix" min="0" max="1" step="0.01" value="0.22">
                     </div>
+                    
                     <div class="mimeophon-toggles">
                         <button class="mimeophon-toggle-btn" id="mimeophon-pingpong">ping-pong</button>
                         <button class="mimeophon-toggle-btn" id="mimeophon-swap">swap</button>
                     </div>
                 </div>
                 
+                <!-- Special Section -->
                 <div class="mimeophon-section">
                     <div class="mimeophon-section-title">Special</div>
-                    <div class="mimeophon-toggles">
+                    
+                    <div class="mimeophon-toggles" style="margin-bottom: var(--space-md);">
                         <button class="mimeophon-toggle-btn" id="mimeophon-hold">hold</button>
                         <button class="mimeophon-toggle-btn" id="mimeophon-flip">flip</button>
                     </div>
-                    <div style="margin-top: 15px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; font-size: 0.7em; color: #b2bec3; line-height: 1.5;">
-                        <strong style="color: #74b9ff;">Tips:</strong><br>
+                    
+                    <div class="mimeophon-tips">
+                        <strong>Tips:</strong><br>
                         • <strong>hold</strong> freezes buffer<br>
                         • <strong>flip</strong> reverses playback<br>
                         • <strong>ping-pong</strong> bounces L/R<br>
@@ -998,16 +823,17 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
                 </div>
             </div>
             
-            <div class="mimeophon-io-controls">
-                <div class="mimeophon-io-param">
-                    <label>Input Level</label>
-                    <input type="range" id="mimeophon-input" min="0" max="1" step="0.01" value="1">
-                    <div class="mimeophon-io-value" id="mimeophon-input-value">100%</div>
+            <!-- I/O Controls -->
+            <div class="mimeophon-io-row">
+                <div class="mimeophon-io-control">
+                    <span class="mimeophon-io-label">input level</span>
+                    <input type="range" class="mimeophon-slider" id="mimeophon-input" min="0" max="1" step="0.01" value="1">
+                    <span class="mimeophon-io-value" id="mimeophon-input-val">100%</span>
                 </div>
-                <div class="mimeophon-io-param">
-                    <label>Output Level</label>
-                    <input type="range" id="mimeophon-output" min="0" max="1" step="0.01" value="1">
-                    <div class="mimeophon-io-value" id="mimeophon-output-value">100%</div>
+                <div class="mimeophon-io-control">
+                    <span class="mimeophon-io-label">output level</span>
+                    <input type="range" class="mimeophon-slider" id="mimeophon-output" min="0" max="1" step="0.01" value="1">
+                    <span class="mimeophon-io-value" id="mimeophon-output-val">100%</span>
                 </div>
             </div>
         `;
@@ -1044,8 +870,8 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         });
         
         // Rate
-        const rateSlider = this.uiContainer.querySelector('#mimeophon-rate-slider');
-        const rateValue = this.uiContainer.querySelector('#mimeophon-rate');
+        const rateSlider = this.uiContainer.querySelector('#mimeophon-rate');
+        const rateValue = this.uiContainer.querySelector('#mimeophon-rate-val');
         rateSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             rateValue.textContent = Math.round(val * 100) + '%';
@@ -1053,8 +879,8 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         });
         
         // μRate
-        const microRateSlider = this.uiContainer.querySelector('#mimeophon-microrate-slider');
-        const microRateValue = this.uiContainer.querySelector('#mimeophon-microrate');
+        const microRateSlider = this.uiContainer.querySelector('#mimeophon-microrate');
+        const microRateValue = this.uiContainer.querySelector('#mimeophon-microrate-val');
         microRateSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             microRateValue.textContent = Math.round(val * 100) + '%';
@@ -1062,8 +888,8 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         });
         
         // μRate Freq
-        const microRateFreqSlider = this.uiContainer.querySelector('#mimeophon-microrate-freq-slider');
-        const microRateFreqValue = this.uiContainer.querySelector('#mimeophon-microrate-freq');
+        const microRateFreqSlider = this.uiContainer.querySelector('#mimeophon-microrate-freq');
+        const microRateFreqValue = this.uiContainer.querySelector('#mimeophon-microrate-freq-val');
         microRateFreqSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             microRateFreqValue.textContent = val.toFixed(1) + ' Hz';
@@ -1071,8 +897,8 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         });
         
         // Skew
-        const skewSlider = this.uiContainer.querySelector('#mimeophon-skew-slider');
-        const skewValue = this.uiContainer.querySelector('#mimeophon-skew');
+        const skewSlider = this.uiContainer.querySelector('#mimeophon-skew');
+        const skewValue = this.uiContainer.querySelector('#mimeophon-skew-val');
         skewSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             if (val > 0) {
@@ -1086,8 +912,8 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         });
         
         // Repeats
-        const repeatsSlider = this.uiContainer.querySelector('#mimeophon-repeats-slider');
-        const repeatsValue = this.uiContainer.querySelector('#mimeophon-repeats');
+        const repeatsSlider = this.uiContainer.querySelector('#mimeophon-repeats');
+        const repeatsValue = this.uiContainer.querySelector('#mimeophon-repeats-val');
         repeatsSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             repeatsValue.textContent = Math.round(val * 100) + '%';
@@ -1095,8 +921,8 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         });
         
         // Color
-        const colorSlider = this.uiContainer.querySelector('#mimeophon-color-slider');
-        const colorValue = this.uiContainer.querySelector('#mimeophon-color');
+        const colorSlider = this.uiContainer.querySelector('#mimeophon-color');
+        const colorValue = this.uiContainer.querySelector('#mimeophon-color-val');
         colorSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             colorValue.textContent = getColorName(val);
@@ -1104,8 +930,8 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         });
         
         // Halo
-        const haloSlider = this.uiContainer.querySelector('#mimeophon-halo-slider');
-        const haloValue = this.uiContainer.querySelector('#mimeophon-halo');
+        const haloSlider = this.uiContainer.querySelector('#mimeophon-halo');
+        const haloValue = this.uiContainer.querySelector('#mimeophon-halo-val');
         haloSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             haloValue.textContent = Math.round(val * 100) + '%';
@@ -1113,8 +939,8 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         });
 
         // Mix
-        const mixSlider = this.uiContainer.querySelector('#mimeophon-mix-slider');
-        const mixValue = this.uiContainer.querySelector('#mimeophon-mix');
+        const mixSlider = this.uiContainer.querySelector('#mimeophon-mix');
+        const mixValue = this.uiContainer.querySelector('#mimeophon-mix-val');
         mixSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             mixValue.textContent = Math.round(val * 100) + '%';
@@ -1148,7 +974,7 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         
         // Input/Output levels
         const inputSlider = this.uiContainer.querySelector('#mimeophon-input');
-        const inputValue = this.uiContainer.querySelector('#mimeophon-input-value');
+        const inputValue = this.uiContainer.querySelector('#mimeophon-input-val');
         inputSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             inputValue.textContent = Math.round(val * 100) + '%';
@@ -1156,7 +982,7 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         });
         
         const outputSlider = this.uiContainer.querySelector('#mimeophon-output');
-        const outputValue = this.uiContainer.querySelector('#mimeophon-output-value');
+        const outputValue = this.uiContainer.querySelector('#mimeophon-output-val');
         outputSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             outputValue.textContent = Math.round(val * 100) + '%';
@@ -1202,40 +1028,45 @@ registerProcessor('mimeophon-processor', MimeophonProcessor);
         }
         
         if (preset.rate !== undefined) {
-            this.uiContainer.querySelector('#mimeophon-rate-slider').value = preset.rate;
-            this.uiContainer.querySelector('#mimeophon-rate').textContent = Math.round(preset.rate * 100) + '%';
+            this.uiContainer.querySelector('#mimeophon-rate').value = preset.rate;
+            this.uiContainer.querySelector('#mimeophon-rate-val').textContent = Math.round(preset.rate * 100) + '%';
         }
         
         if (preset.microRate !== undefined) {
-            this.uiContainer.querySelector('#mimeophon-microrate-slider').value = preset.microRate;
-            this.uiContainer.querySelector('#mimeophon-microrate').textContent = Math.round(preset.microRate * 100) + '%';
+            this.uiContainer.querySelector('#mimeophon-microrate').value = preset.microRate;
+            this.uiContainer.querySelector('#mimeophon-microrate-val').textContent = Math.round(preset.microRate * 100) + '%';
         }
         
         if (preset.microRateFreq !== undefined) {
-            this.uiContainer.querySelector('#mimeophon-microrate-freq-slider').value = preset.microRateFreq;
-            this.uiContainer.querySelector('#mimeophon-microrate-freq').textContent = preset.microRateFreq.toFixed(1) + ' Hz';
+            this.uiContainer.querySelector('#mimeophon-microrate-freq').value = preset.microRateFreq;
+            this.uiContainer.querySelector('#mimeophon-microrate-freq-val').textContent = preset.microRateFreq.toFixed(1) + ' Hz';
         }
         
         if (preset.skew !== undefined) {
-            this.uiContainer.querySelector('#mimeophon-skew-slider').value = preset.skew;
+            this.uiContainer.querySelector('#mimeophon-skew').value = preset.skew;
             const val = preset.skew;
             let display = val > 0 ? 'R' + Math.round(val * 100) : val < 0 ? 'L' + Math.round(Math.abs(val) * 100) : '0';
-            this.uiContainer.querySelector('#mimeophon-skew').textContent = display;
+            this.uiContainer.querySelector('#mimeophon-skew-val').textContent = display;
         }
         
         if (preset.repeats !== undefined) {
-            this.uiContainer.querySelector('#mimeophon-repeats-slider').value = preset.repeats;
-            this.uiContainer.querySelector('#mimeophon-repeats').textContent = Math.round(preset.repeats * 100) + '%';
+            this.uiContainer.querySelector('#mimeophon-repeats').value = preset.repeats;
+            this.uiContainer.querySelector('#mimeophon-repeats-val').textContent = Math.round(preset.repeats * 100) + '%';
         }
         
         if (preset.color !== undefined) {
-            this.uiContainer.querySelector('#mimeophon-color-slider').value = preset.color;
-            this.uiContainer.querySelector('#mimeophon-color').textContent = getColorName(preset.color);
+            this.uiContainer.querySelector('#mimeophon-color').value = preset.color;
+            this.uiContainer.querySelector('#mimeophon-color-val').textContent = getColorName(preset.color);
         }
         
         if (preset.halo !== undefined) {
-            this.uiContainer.querySelector('#mimeophon-halo-slider').value = preset.halo;
-            this.uiContainer.querySelector('#mimeophon-halo').textContent = Math.round(preset.halo * 100) + '%';
+            this.uiContainer.querySelector('#mimeophon-halo').value = preset.halo;
+            this.uiContainer.querySelector('#mimeophon-halo-val').textContent = Math.round(preset.halo * 100) + '%';
+        }
+        
+        if (preset.mix !== undefined) {
+            this.uiContainer.querySelector('#mimeophon-mix').value = preset.mix;
+            this.uiContainer.querySelector('#mimeophon-mix-val').textContent = Math.round(preset.mix * 100) + '%';
         }
     }
 }
