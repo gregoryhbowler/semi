@@ -1,53 +1,60 @@
-/* drum-machine-styles.css */
+/* drum-machine-styles.css - Dream Aesthetic */
 
 .drum-machine-panel {
   grid-column: 1 / -1;
-  background: linear-gradient(135deg, 
-    rgba(255, 200, 200, 0.6) 0%, 
-    rgba(255, 220, 200, 0.6) 100%);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
 }
 
 .drum-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-md);
-  padding-bottom: var(--space-md);
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-light);
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .drum-clock-selector {
   display: flex;
-  gap: var(--space-sm);
+  gap: 8px;
   align-items: center;
 }
 
 .drum-clock-selector label {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .drum-clock-selector select {
-  padding: var(--space-sm) var(--space-md);
-  background: rgba(255, 255, 255, 0.6);
+  padding: 6px 10px;
+  background: var(--bg-secondary);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  font-family: inherit;
-  font-size: 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 11px;
   cursor: pointer;
+  color: var(--text-primary);
+}
+
+.drum-clock-selector select:hover {
+  border-color: var(--border-medium);
 }
 
 /* Step Sequencer Section */
 .drum-sequencer-section {
-  margin-bottom: var(--space-lg);
-  padding: var(--space-md);
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
+  padding: 16px;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .drum-seq-row {
-  margin-bottom: var(--space-lg);
+  margin-bottom: 20px;
 }
 
 .drum-seq-row:last-child {
@@ -58,38 +65,33 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-sm);
-  padding-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 10px;
 }
 
 .drum-seq-title {
-  font-size: 0.85rem;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
 }
 
 .drum-seq-clear-btn {
-  padding: 4px 12px;
-  background: rgba(255, 255, 255, 0.6);
+  padding: 4px 10px;
+  background: var(--bg-secondary);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  font-size: 0.7rem;
+  font-size: 10px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
 }
 
 .drum-seq-clear-btn:hover {
-  background: rgba(255, 255, 255, 0.8);
-  color: var(--text-primary);
-}
-
-.drum-seq-clear-btn:active {
-  transform: scale(0.95);
+  background: var(--bg-tertiary);
+  border-color: var(--border-medium);
 }
 
 /* Step Grid */
@@ -101,11 +103,11 @@
 
 .drum-step {
   aspect-ratio: 1;
-  background: rgba(255, 255, 255, 0.5);
-  border: 2px solid var(--border-light);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.1s ease;
   position: relative;
   display: flex;
   align-items: center;
@@ -114,25 +116,20 @@
 
 .drum-step::before {
   content: attr(data-step);
-  font-size: 0.6rem;
-  color: var(--text-secondary);
+  font-size: 9px;
+  color: var(--text-muted);
   font-weight: 500;
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  transform: translateX(-50%);
+  font-family: var(--font-mono);
 }
 
 .drum-step:hover {
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--bg-tertiary);
   border-color: var(--border-medium);
-  transform: translateY(-2px);
 }
 
 .drum-step.active {
-  background: linear-gradient(135deg, #e08080, #f7c49a);
-  border-color: #e08080;
-  box-shadow: 0 2px 4px rgba(224, 128, 128, 0.3);
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
 }
 
 .drum-step.active::before {
@@ -141,100 +138,41 @@
 }
 
 .drum-step.playing {
-  animation: drum-step-pulse 0.2s ease-out;
-}
-
-@keyframes drum-step-pulse {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 2px 4px rgba(224, 128, 128, 0.3);
-  }
-  50% {
-    transform: scale(1.15);
-    box-shadow: 0 4px 12px rgba(224, 128, 128, 0.6);
-  }
-  100% {
-    transform: scale(1);
-    box-shadow: 0 2px 4px rgba(224, 128, 128, 0.3);
-  }
-}
-
-/* Global Controls */
-.drum-global-controls {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-md);
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--border-light);
-  margin-bottom: var(--space-md);
-}
-
-.drum-control-btn {
-  padding: var(--space-md);
-  background: rgba(255, 255, 255, 0.6);
-  border: 2px solid var(--border-light);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  grid-column: 1 / -1;
-}
-
-.drum-control-btn:hover {
-  background: rgba(255, 255, 255, 0.8);
-  border-color: var(--border-medium);
-  transform: translateY(-2px);
-}
-
-.drum-control-btn:active {
-  transform: translateY(0);
-}
-
-.drum-control-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.drum-control-group label {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  font-weight: 500;
+  box-shadow: 0 0 8px rgba(122, 155, 184, 0.6);
+  transform: scale(1.05);
 }
 
 /* Voice Parameters */
 .drum-voices-container {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-md);
-  margin-bottom: var(--space-md);
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .drum-voice-section {
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: var(--space-md);
+  padding: 14px;
 }
 
 .drum-voice-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-sm);
-  padding-bottom: var(--space-sm);
+  margin-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border-light);
 }
 
 .drum-voice-title {
-  font-size: 0.85rem;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
 }
 
 .drum-mute-toggle {
@@ -245,25 +183,26 @@
 }
 
 .drum-mute-toggle input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   cursor: pointer;
+  accent-color: var(--accent-blue);
 }
 
 .drum-mute-toggle span {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
 .drum-voice-section.muted {
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .drum-param-row {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-sm);
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .drum-param-row:last-child {
@@ -271,9 +210,10 @@
 }
 
 .drum-param-row label {
-  flex: 0 0 60px;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
+  flex: 0 0 50px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
 .drum-param-row input[type="range"] {
@@ -281,32 +221,69 @@
   height: 4px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--border-light);
   border-radius: 2px;
   cursor: pointer;
 }
 
 .drum-param-row input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  background: var(--text-primary);
+  width: 12px;
+  height: 12px;
+  background: var(--accent-blue);
   border-radius: 50%;
   cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-.drum-param-row input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
 }
 
 .drum-param-value {
-  flex: 0 0 45px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: var(--text-primary);
+  flex: 0 0 50px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-blue-dark);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+/* Global Controls */
+.drum-global-controls {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 16px;
+}
+
+.drum-control-btn {
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  grid-column: 1 / -1;
+}
+
+.drum-control-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-medium);
+}
+
+.drum-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drum-control-group label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 @media (max-width: 1024px) {
@@ -316,5 +293,12 @@
   
   .drum-step-grid {
     grid-template-columns: repeat(8, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .drum-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
