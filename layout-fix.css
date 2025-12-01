@@ -1,0 +1,81 @@
+/* layout-fix.css - Adds padding to keep content clear of floating sidebars */
+
+/* 
+ * The transport sidebar (left) is 56px wide, expands to 64px on hover
+ * The recorder sidebar (right) is 80px wide, expands to 100px when recording
+ * 
+ * Add comfortable padding so content never gets overlapped
+ */
+
+/* Main container - add horizontal padding for sidebars */
+.main-container {
+  padding-left: 80px;   /* Transport sidebar + gap */
+  padding-right: 100px; /* Recorder sidebar + gap */
+  max-width: calc(1400px + 180px); /* Account for added padding */
+}
+
+/* Also add padding to header and footer so they align */
+.header {
+  margin-left: 80px;
+  margin-right: 100px;
+}
+
+.footer {
+  margin-left: 80px;
+  margin-right: 100px;
+}
+
+/* Status display also needs adjustment */
+.status-display {
+  margin-left: 80px;
+  margin-right: 100px;
+}
+
+/* Responsive - reduce padding on smaller screens */
+@media (max-width: 1400px) {
+  .main-container {
+    padding-left: 70px;
+    padding-right: 90px;
+  }
+  
+  .header,
+  .footer,
+  .status-display {
+    margin-left: 70px;
+    margin-right: 90px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .main-container {
+    padding-left: 60px;
+    padding-right: 80px;
+  }
+  
+  .header,
+  .footer,
+  .status-display {
+    margin-left: 60px;
+    margin-right: 80px;
+  }
+}
+
+/* On mobile, sidebars move to bottom so no horizontal padding needed */
+@media (max-width: 768px) {
+  .main-container {
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 80px; /* Space for bottom-docked sidebars */
+  }
+  
+  .header,
+  .footer,
+  .status-display {
+    margin-left: 0;
+    margin-right: 0;
+  }
+  
+  .footer {
+    margin-bottom: 80px;
+  }
+}
