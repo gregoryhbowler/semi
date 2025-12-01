@@ -1,87 +1,131 @@
-/* transport-styles.css - Dream Aesthetic */
+/* transport-styles.css - Compact floating transport control */
 
+/* Transport Sidebar Container - Compact design */
 .transport-sidebar {
   position: fixed;
-  left: 20px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  width: 72px;
-  background: var(--bg-secondary);
+  width: 56px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-elevated);
-  padding: 16px 12px;
+  padding: var(--space-sm);
   z-index: 1000;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  transition: all 0.2s ease;
+  gap: var(--space-xs);
+  transition: all 0.3s ease;
 }
 
 .transport-sidebar:hover {
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.18);
+  width: 64px;
 }
 
+/* Running state */
 .transport-sidebar.running {
-  border-color: rgba(74, 222, 128, 0.3);
+  background: linear-gradient(135deg, 
+    rgba(235, 255, 235, 0.95) 0%, 
+    rgba(255, 255, 255, 0.95) 100%);
+  border-color: rgba(90, 196, 90, 0.25);
 }
 
+/* Stopped state */
+.transport-sidebar.stopped {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+/* Title - Smaller */
 .transport-title {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 1px;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-dim);
   text-align: center;
+  white-space: nowrap;
 }
 
+/* Status Indicator - Smaller */
 .transport-indicator {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--border-medium);
-  transition: all 0.2s ease;
+  background: var(--text-dim);
+  transition: all 0.3s ease;
 }
 
 .transport-sidebar.running .transport-indicator {
-  background: #4ade80;
-  box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+  background: #5ac45a;
+  box-shadow: 0 0 8px rgba(90, 196, 90, 0.6);
+  animation: pulse-transport 2s ease-in-out infinite;
 }
 
+.transport-sidebar.stopped .transport-indicator {
+  background: #999;
+  box-shadow: none;
+}
+
+@keyframes pulse-transport {
+  0%, 100% { 
+    box-shadow: 0 0 8px rgba(90, 196, 90, 0.6);
+  }
+  50% { 
+    box-shadow: 0 0 14px rgba(90, 196, 90, 0.8);
+  }
+}
+
+/* Status Text - Hidden by default, show on hover */
 .transport-status {
-  font-size: 9px;
+  font-size: 0.5rem;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-dim);
   text-align: center;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.transport-sidebar:hover .transport-status {
+  max-height: 20px;
+  opacity: 1;
 }
 
 .transport-sidebar.running .transport-status {
-  color: #22c55e;
+  color: #4a9a4a;
 }
 
+/* Button Container */
 .transport-buttons {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
 }
 
+/* Transport Buttons - Smaller */
 .transport-btn {
   width: 100%;
-  height: 40px;
+  height: 36px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-family: var(--font-sans);
-  font-size: 16px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   position: relative;
+  overflow: hidden;
 }
 
 .transport-btn:disabled {
@@ -93,52 +137,63 @@
   transform: scale(1.05);
 }
 
+.transport-btn:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+/* Play Button */
 .transport-btn.play {
-  background: var(--accent-blue);
+  background: linear-gradient(135deg, #6bcf6b, #5ac45a);
   color: white;
-  box-shadow: 0 4px 10px rgba(122, 155, 184, 0.3);
+  box-shadow: 0 2px 8px rgba(90, 196, 90, 0.35);
 }
 
 .transport-btn.play:not(:disabled):hover {
-  background: var(--accent-blue-dark);
+  background: linear-gradient(135deg, #5ac45a, #4ab34a);
+  box-shadow: 0 4px 12px rgba(90, 196, 90, 0.45);
 }
 
+/* Stop Button */
 .transport-btn.stop {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-light);
+  background: linear-gradient(135deg, #666, #555);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .transport-btn.stop:not(:disabled):hover {
-  background: var(--border-light);
+  background: linear-gradient(135deg, #555, #444);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
+/* Volume Control - More compact */
 .transport-volume {
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding-top: 12px;
+  gap: 2px;
+  padding-top: var(--space-xs);
   border-top: 1px solid var(--border-light);
 }
 
 .transport-volume-label {
-  font-size: 9px;
+  font-size: 0.45rem;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-dim);
 }
 
 .transport-volume-value {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 0.6rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
-  font-family: var(--font-mono);
+  min-width: 32px;
+  text-align: center;
 }
 
+/* Vertical slider container - shorter */
 .transport-volume-slider-container {
   width: 100%;
   height: 50px;
@@ -147,12 +202,13 @@
   align-items: center;
 }
 
+/* Horizontal slider with rotation */
 .transport-volume-slider-horizontal {
   width: 50px;
-  height: 4px;
+  height: 3px;
   -webkit-appearance: none;
   appearance: none;
-  background: var(--border-light);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 2px;
   cursor: pointer;
   transform: rotate(-90deg);
@@ -160,69 +216,103 @@
 
 .transport-volume-slider-horizontal::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  background: var(--accent-blue);
+  width: 12px;
+  height: 12px;
+  background: var(--text-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.transport-volume-slider-horizontal::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.transport-volume-slider-horizontal::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--text-primary);
+  border: none;
   border-radius: 50%;
   cursor: pointer;
 }
+
+/* ========== PATCH SAVE/LOAD SECTION - Compact ========== */
 
 .transport-patch-controls {
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding-top: 12px;
+  gap: 4px;
+  padding-top: var(--space-xs);
   border-top: 1px solid var(--border-light);
 }
 
 .transport-patch-label {
-  font-size: 9px;
+  font-size: 0.45rem;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-dim);
 }
 
+/* Patch Buttons Row */
+.transport-patch-controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* Patch Save Button */
 .transport-btn.patch-save {
-  background: var(--accent-blue-light);
-  color: var(--accent-blue-dark);
-  height: 36px;
-  font-size: 14px;
+  background: linear-gradient(135deg, #7eb5d6, #5a9fc4);
+  color: white;
+  box-shadow: 0 2px 8px rgba(126, 181, 214, 0.35);
+  height: 32px;
+  width: calc(50% - 2px);
+  font-size: 0.85rem;
 }
 
 .transport-btn.patch-save:hover {
-  background: var(--accent-blue);
-  color: white;
+  background: linear-gradient(135deg, #5a9fc4, #4a8fb4);
+  box-shadow: 0 4px 12px rgba(126, 181, 214, 0.45);
 }
 
+/* Patch Load Button */
 .transport-btn.patch-load {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-light);
-  height: 36px;
-  font-size: 14px;
+  background: linear-gradient(135deg, #c49ac4, #a47ea4);
+  color: white;
+  box-shadow: 0 2px 8px rgba(196, 154, 196, 0.35);
+  height: 32px;
+  width: calc(50% - 2px);
+  font-size: 0.85rem;
 }
 
 .transport-btn.patch-load:hover {
-  background: var(--border-light);
+  background: linear-gradient(135deg, #a47ea4, #946e94);
+  box-shadow: 0 4px 12px rgba(196, 154, 196, 0.45);
 }
 
+/* Tooltip */
 .transport-tooltip {
   position: absolute;
-  right: -10px;
+  right: -8px;
   transform: translateX(100%);
   background: var(--text-primary);
   color: white;
-  padding: 5px 8px;
+  padding: 4px 8px;
   border-radius: var(--radius-sm);
-  font-size: 10px;
+  font-size: 0.6rem;
   font-weight: 500;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.2s ease;
 }
 
 .transport-tooltip::after {
@@ -239,29 +329,54 @@
   opacity: 1;
 }
 
+/* Responsive adjustments */
 @media (max-width: 1200px) {
   .transport-sidebar {
-    left: 10px;
-    width: 64px;
-    padding: 12px 10px;
+    left: 8px;
+    width: 50px;
+    padding: 6px;
+  }
+  
+  .transport-sidebar:hover {
+    width: 56px;
   }
   
   .transport-btn {
-    height: 36px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+  
+  .transport-btn.patch-save,
+  .transport-btn.patch-load {
+    height: 28px;
+    font-size: 0.75rem;
+  }
+  
+  .transport-volume-slider-container {
+    height: 40px;
+  }
+  
+  .transport-volume-slider-horizontal {
+    width: 40px;
   }
 }
 
 @media (max-width: 768px) {
   .transport-sidebar {
     position: fixed;
-    left: 10px;
+    left: 8px;
     top: auto;
-    bottom: 20px;
+    bottom: 12px;
     transform: none;
     flex-direction: row;
     width: auto;
-    padding: 10px 14px;
-    gap: 10px;
+    height: auto;
+    padding: 6px 10px;
+    gap: 6px;
+  }
+  
+  .transport-sidebar:hover {
+    width: auto;
   }
   
   .transport-buttons {
@@ -270,8 +385,14 @@
   }
   
   .transport-btn {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
+  }
+  
+  .transport-btn.patch-save,
+  .transport-btn.patch-load {
+    width: 32px;
+    height: 32px;
   }
   
   .transport-title {
@@ -281,7 +402,7 @@
   .transport-volume {
     flex-direction: row;
     padding-top: 0;
-    padding-left: 10px;
+    padding-left: 6px;
     border-top: none;
     border-left: 1px solid var(--border-light);
   }
@@ -293,12 +414,13 @@
   
   .transport-volume-slider-horizontal {
     transform: none;
+    width: 40px;
   }
   
   .transport-patch-controls {
     flex-direction: row;
     padding-top: 0;
-    padding-left: 10px;
+    padding-left: 6px;
     border-top: none;
     border-left: 1px solid var(--border-light);
   }
@@ -306,4 +428,9 @@
   .transport-patch-label {
     display: none;
   }
+}
+
+/* Hide original master section's start button when floating transport is active */
+.master-panel-hidden .action-btn {
+  display: none;
 }
