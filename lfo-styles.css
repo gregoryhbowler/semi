@@ -1,48 +1,46 @@
-/* lfo-styles.css */
-/* Styles for the 7-LFO modulation panel */
+/* lfo-styles.css - Dream Aesthetic */
 
 .lfo-panel {
   grid-column: 1 / -1;
-  background: linear-gradient(135deg, 
-    rgba(240, 255, 240, 0.6) 0%, 
-    rgba(220, 255, 235, 0.6) 100%);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
 }
 
 .lfo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: var(--space-md);
-  margin-bottom: var(--space-md);
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+  padding: 16px;
 }
 
 .lfo-module {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid var(--border-medium);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: var(--space-md);
-  transition: all 0.3s ease;
+  padding: 14px;
+  transition: all 0.15s ease;
 }
 
 .lfo-module.active {
-  border-color: #5b9570;
-  box-shadow: 0 0 0 2px rgba(91, 149, 112, 0.2);
-  background: rgba(220, 255, 235, 0.5);
+  border-color: var(--accent-blue);
+  background: rgba(122, 155, 184, 0.03);
 }
 
 .lfo-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-md);
-  padding-bottom: var(--space-sm);
+  margin-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border-light);
 }
 
 .lfo-title {
-  font-size: 0.75rem;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
 }
 
@@ -51,92 +49,82 @@
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  user-select: none;
 }
 
 .lfo-enable-toggle input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
-  accent-color: #5b9570;
+  accent-color: var(--accent-blue);
 }
 
 .lfo-enable-text {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
+  font-size: 10px;
+  color: var(--text-muted);
   font-weight: 500;
-}
-
-.lfo-enable-toggle:hover .lfo-enable-text {
-  color: var(--text-primary);
 }
 
 /* LFO Controls */
 .lfo-controls {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
 .lfo-control-row {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 10px;
 }
 
 .lfo-control-row label {
-  flex: 0 0 70px;
-  font-size: 0.65rem;
-  color: var(--text-secondary);
+  flex: 0 0 60px;
+  font-size: 10px;
+  color: var(--text-muted);
   text-transform: lowercase;
   font-weight: 500;
 }
 
 .lfo-control-row input[type="range"] {
   flex: 1;
-  height: 3px;
+  height: 4px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--border-light);
   border-radius: 2px;
   cursor: pointer;
 }
 
 .lfo-control-row input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  background: #5b9570;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-blue);
   border-radius: 50%;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.lfo-control-row input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-  box-shadow: 0 2px 8px rgba(91, 149, 112, 0.3);
 }
 
 .lfo-value {
-  flex: 0 0 50px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: var(--text-primary);
+  flex: 0 0 45px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-blue-dark);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
 
 .lfo-control-row select {
   flex: 1;
   padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-light);
-  border-radius: 6px;
-  font-size: 0.7rem;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
   color: var(--text-primary);
   cursor: pointer;
-  font-family: inherit;
+  font-family: var(--font-sans);
 }
 
 .lfo-control-row select:hover {
@@ -145,42 +133,41 @@
 
 .lfo-control-row select:focus {
   outline: none;
-  border-color: #5b9570;
-  box-shadow: 0 0 0 2px rgba(91, 149, 112, 0.1);
+  border-color: var(--accent-blue);
 }
 
 /* Destination Sections */
 .lfo-destinations {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: 10px;
 }
 
 .lfo-dest {
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 6px;
-  padding: var(--space-sm);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  border: 1px solid transparent;
 }
 
 .lfo-dest.active {
-  background: rgba(220, 255, 235, 0.3);
-  border-color: rgba(91, 149, 112, 0.3);
+  background: rgba(122, 155, 184, 0.08);
+  border-color: rgba(122, 155, 184, 0.2);
 }
 
 .lfo-dest-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-sm);
+  margin-bottom: 8px;
 }
 
 .lfo-dest-label {
-  font-size: 0.65rem;
+  font-size: 10px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
 }
 
 .lfo-dest-toggle {
@@ -191,15 +178,15 @@
 }
 
 .lfo-dest-toggle input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   cursor: pointer;
-  accent-color: #5b9570;
+  accent-color: var(--accent-blue);
 }
 
 .lfo-dest-toggle-text {
-  font-size: 0.65rem;
-  color: var(--text-secondary);
+  font-size: 10px;
+  color: var(--text-muted);
   font-weight: 500;
 }
 
@@ -210,30 +197,36 @@
 }
 
 .lfo-dest:not(.active) .lfo-dest-controls {
-  opacity: 0.5;
+  opacity: 0.4;
   pointer-events: none;
 }
 
 /* Disabled state for entire module */
 .lfo-module:not(.active) .lfo-controls,
 .lfo-module:not(.active) .lfo-destinations {
-  opacity: 0.5;
+  opacity: 0.4;
   pointer-events: none;
 }
 
-/* Waveform indicator (optional visual enhancement) */
+/* Waveform indicator */
 .lfo-waveform-indicator {
   width: 100%;
-  height: 40px;
-  background: rgba(0, 0, 0, 0.03);
-  border-radius: 4px;
-  margin-top: var(--space-sm);
+  height: 32px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6rem;
-  color: var(--text-secondary);
+  font-size: 10px;
+  color: var(--text-muted);
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 768px) {
+  .lfo-grid {
+    grid-template-columns: 1fr;
+  }
 }
