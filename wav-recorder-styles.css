@@ -1,146 +1,115 @@
-/* wav-recorder-styles.css - Fixed sidebar recorder styles */
+/* wav-recorder-styles.css - Dream Aesthetic */
 
-/* Recorder Sidebar Container */
 .wav-recorder-sidebar {
   position: fixed;
   right: 20px;
   top: 50%;
   transform: translateY(-50%);
-  width: 80px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  width: 72px;
+  background: var(--bg-secondary);
   border: 1px solid var(--border-light);
-  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated);
+  padding: 16px 12px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-md);
-  transition: all 0.3s ease;
+  gap: 14px;
+  transition: all 0.2s ease;
 }
 
 .wav-recorder-sidebar:hover {
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
 }
 
-/* Expanded state when recording */
 .wav-recorder-sidebar.recording {
-  width: 100px;
-  background: linear-gradient(135deg, 
-    rgba(255, 240, 240, 0.98) 0%, 
-    rgba(255, 255, 255, 0.98) 100%);
-  border-color: rgba(220, 50, 50, 0.3);
+  width: 80px;
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .wav-recorder-sidebar.paused {
-  background: linear-gradient(135deg, 
-    rgba(255, 250, 240, 0.98) 0%, 
-    rgba(255, 255, 255, 0.98) 100%);
-  border-color: rgba(220, 180, 50, 0.3);
+  border-color: rgba(250, 204, 21, 0.3);
 }
 
-/* Title */
 .recorder-title {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--text-muted);
   text-align: center;
-  white-space: nowrap;
 }
 
-/* Time Display */
 .recorder-time {
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
   text-align: center;
-  padding: var(--space-xs) var(--space-sm);
-  background: rgba(0, 0, 0, 0.05);
+  padding: 4px 8px;
+  background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
-  min-width: 60px;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
 }
 
 .wav-recorder-sidebar.recording .recorder-time {
-  color: #dc3232;
-  animation: pulse-time 1s ease-in-out infinite;
+  color: #ef4444;
 }
 
 .wav-recorder-sidebar.paused .recorder-time {
-  color: #dcb432;
+  color: #f59e0b;
 }
 
-@keyframes pulse-time {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-/* Recording Indicator */
 .recorder-indicator {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: var(--text-dim);
-  transition: all 0.3s ease;
+  background: var(--border-medium);
+  transition: all 0.2s ease;
 }
 
 .wav-recorder-sidebar.recording .recorder-indicator {
-  background: #dc3232;
-  box-shadow: 0 0 12px rgba(220, 50, 50, 0.6);
-  animation: pulse-indicator 1s ease-in-out infinite;
+  background: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  animation: pulse-rec 1s ease-in-out infinite;
 }
 
 .wav-recorder-sidebar.paused .recorder-indicator {
-  background: #dcb432;
-  box-shadow: 0 0 8px rgba(220, 180, 50, 0.5);
-  animation: blink-indicator 0.8s ease-in-out infinite;
+  background: #f59e0b;
+  animation: blink-rec 0.8s ease-in-out infinite;
 }
 
-@keyframes pulse-indicator {
-  0%, 100% { 
-    transform: scale(1);
-    box-shadow: 0 0 12px rgba(220, 50, 50, 0.6);
-  }
-  50% { 
-    transform: scale(1.2);
-    box-shadow: 0 0 20px rgba(220, 50, 50, 0.8);
-  }
+@keyframes pulse-rec {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
 }
 
-@keyframes blink-indicator {
+@keyframes blink-rec {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
 
-/* Button Container */
 .recorder-buttons {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: 8px;
   width: 100%;
 }
 
-/* Recorder Buttons */
 .recorder-btn {
   width: 100%;
-  height: 44px;
+  height: 40px;
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  font-family: inherit;
-  font-size: 1.2rem;
-  font-weight: 500;
+  font-family: var(--font-sans);
+  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   position: relative;
-  overflow: hidden;
 }
 
 .recorder-btn:disabled {
@@ -152,163 +121,133 @@
   transform: scale(1.05);
 }
 
-.recorder-btn:not(:disabled):active {
-  transform: scale(0.98);
-}
-
-/* Record Button */
 .recorder-btn.record {
-  background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+  background: #ef4444;
   color: white;
-  box-shadow: 0 4px 12px rgba(238, 90, 90, 0.4);
+  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
 }
 
 .recorder-btn.record:not(:disabled):hover {
-  background: linear-gradient(135deg, #ff5252, #e04545);
-  box-shadow: 0 6px 16px rgba(238, 90, 90, 0.5);
+  background: #dc2626;
 }
 
 .recorder-btn.record.active {
-  background: linear-gradient(135deg, #dc3232, #c42828);
-  animation: record-pulse 1.5s ease-in-out infinite;
+  animation: pulse-btn 1.5s ease-in-out infinite;
 }
 
-@keyframes record-pulse {
-  0%, 100% { box-shadow: 0 4px 12px rgba(220, 50, 50, 0.4); }
-  50% { box-shadow: 0 4px 24px rgba(220, 50, 50, 0.7); }
+@keyframes pulse-btn {
+  0%, 100% { box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); }
+  50% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5); }
 }
 
-/* Pause Button */
 .recorder-btn.pause {
-  background: linear-gradient(135deg, #ffd93d, #f5c800);
-  color: #333;
-  box-shadow: 0 4px 12px rgba(245, 200, 0, 0.4);
+  background: #f59e0b;
+  color: white;
+  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
 }
 
 .recorder-btn.pause:not(:disabled):hover {
-  background: linear-gradient(135deg, #ffe066, #ffd93d);
-  box-shadow: 0 6px 16px rgba(245, 200, 0, 0.5);
+  background: #d97706;
 }
 
-.recorder-btn.pause.active {
-  background: linear-gradient(135deg, #dcb432, #c9a22a);
-}
-
-/* Stop Button */
 .recorder-btn.stop {
-  background: linear-gradient(135deg, #666, #555);
-  color: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
 }
 
 .recorder-btn.stop:not(:disabled):hover {
-  background: linear-gradient(135deg, #555, #444);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  background: var(--border-light);
 }
 
-/* Download Button */
 .recorder-btn.download {
-  background: linear-gradient(135deg, #6bcf6b, #5ac45a);
+  background: var(--accent-blue);
   color: white;
-  box-shadow: 0 4px 12px rgba(90, 196, 90, 0.4);
+  box-shadow: 0 4px 10px rgba(122, 155, 184, 0.3);
 }
 
 .recorder-btn.download:not(:disabled):hover {
-  background: linear-gradient(135deg, #5ac45a, #4ab34a);
-  box-shadow: 0 6px 16px rgba(90, 196, 90, 0.5);
+  background: var(--accent-blue-dark);
 }
 
-/* Cancel Button */
 .recorder-btn.cancel {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--text-dim);
-  box-shadow: none;
-  font-size: 0.8rem;
-  height: 32px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  height: 28px;
 }
 
 .recorder-btn.cancel:not(:disabled):hover {
-  background: rgba(0, 0, 0, 0.1);
-  color: var(--text-secondary);
+  background: var(--bg-tertiary);
 }
 
-/* Button Icons */
-.recorder-btn .btn-icon {
-  font-size: inherit;
-}
-
-/* Status Text */
 .recorder-status {
-  font-size: 0.55rem;
+  font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--text-muted);
   text-align: center;
-  padding: var(--space-xs) 0;
 }
 
 .wav-recorder-sidebar.recording .recorder-status {
-  color: #dc3232;
+  color: #ef4444;
 }
 
 .wav-recorder-sidebar.paused .recorder-status {
-  color: #dcb432;
+  color: #f59e0b;
 }
 
-/* File Info (after recording) */
 .recorder-file-info {
-  font-size: 0.6rem;
-  color: var(--text-secondary);
+  font-size: 9px;
+  color: var(--text-muted);
   text-align: center;
-  padding: var(--space-xs);
-  background: rgba(0, 0, 0, 0.03);
+  padding: 4px;
+  background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
   width: 100%;
   word-break: break-all;
 }
 
-/* Level Meter */
 .recorder-level-meter {
   width: 100%;
   height: 4px;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--border-light);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .recorder-level-bar {
   height: 100%;
-  background: linear-gradient(90deg, #6bcf6b, #ffd93d, #ff6b6b);
+  background: linear-gradient(90deg, var(--accent-blue), #f59e0b, #ef4444);
   width: 0%;
   transition: width 0.05s ease;
   border-radius: 2px;
 }
 
-/* Tooltip */
 .recorder-tooltip {
   position: absolute;
   left: -10px;
   transform: translateX(-100%);
   background: var(--text-primary);
   color: white;
-  padding: 6px 10px;
+  padding: 5px 8px;
   border-radius: var(--radius-sm);
-  font-size: 0.65rem;
+  font-size: 10px;
   font-weight: 500;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.15s ease;
 }
 
 .recorder-tooltip::after {
   content: '';
   position: absolute;
-  right: -6px;
+  right: -5px;
   top: 50%;
   transform: translateY(-50%);
-  border: 6px solid transparent;
+  border: 5px solid transparent;
   border-left-color: var(--text-primary);
 }
 
@@ -316,21 +255,49 @@
   opacity: 1;
 }
 
-/* Responsive adjustments */
+/* State-based visibility */
+.wav-recorder-sidebar:not(.recording):not(.paused) .recorder-btn.pause,
+.wav-recorder-sidebar:not(.recording):not(.paused) .recorder-btn.stop,
+.wav-recorder-sidebar:not(.recording):not(.paused) .recorder-btn.cancel,
+.wav-recorder-sidebar:not(.has-recording) .recorder-btn.download {
+  display: none;
+}
+
+.wav-recorder-sidebar.recording .recorder-btn.record,
+.wav-recorder-sidebar.paused .recorder-btn.record {
+  display: none;
+}
+
+.wav-recorder-sidebar.idle .recorder-time {
+  display: none;
+}
+
+.wav-recorder-sidebar.idle .recorder-indicator {
+  opacity: 0.3;
+}
+
+.wav-recorder-sidebar.has-recording .recorder-btn.download {
+  animation: bounce-dl 0.5s ease;
+}
+
+@keyframes bounce-dl {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
 @media (max-width: 1200px) {
   .wav-recorder-sidebar {
     right: 10px;
-    width: 70px;
-    padding: var(--space-sm);
+    width: 64px;
+    padding: 12px 10px;
   }
   
   .wav-recorder-sidebar.recording {
-    width: 85px;
+    width: 72px;
   }
   
   .recorder-btn {
-    height: 40px;
-    font-size: 1rem;
+    height: 36px;
   }
 }
 
@@ -344,8 +311,8 @@
     flex-direction: row;
     width: auto;
     height: auto;
-    padding: var(--space-sm) var(--space-md);
-    gap: var(--space-sm);
+    padding: 10px 14px;
+    gap: 10px;
   }
   
   .wav-recorder-sidebar.recording {
@@ -358,8 +325,8 @@
   }
   
   .recorder-btn {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
   }
   
   .recorder-title {
@@ -367,39 +334,6 @@
   }
   
   .recorder-time {
-    min-width: auto;
-    padding: var(--space-xs);
+    padding: 4px;
   }
-}
-
-/* Hide elements based on state */
-.wav-recorder-sidebar:not(.recording):not(.paused) .recorder-btn.pause,
-.wav-recorder-sidebar:not(.recording):not(.paused) .recorder-btn.stop,
-.wav-recorder-sidebar:not(.recording):not(.paused) .recorder-btn.cancel,
-.wav-recorder-sidebar:not(.has-recording) .recorder-btn.download {
-  display: none;
-}
-
-.wav-recorder-sidebar.recording .recorder-btn.record,
-.wav-recorder-sidebar.paused .recorder-btn.record {
-  display: none;
-}
-
-/* Show/hide based on recording state */
-.wav-recorder-sidebar.idle .recorder-time {
-  display: none;
-}
-
-.wav-recorder-sidebar.idle .recorder-indicator {
-  opacity: 0.3;
-}
-
-/* Animation for new recording available */
-.wav-recorder-sidebar.has-recording .recorder-btn.download {
-  animation: bounce-download 0.5s ease;
-}
-
-@keyframes bounce-download {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
 }
